@@ -1,0 +1,49 @@
+@use '@/styles/variables.scss' as *;
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6rpx 20rpx;
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+
+  .text {
+    line-height: 1.2;
+  }
+
+  &.pending {
+    background-color: rgba(251, 140, 0, 0.1);
+    color: $color-warning;
+  }
+
+  &.inProgress {
+    background-color: rgba(30, 136, 229, 0.1);
+    color: $color-primary;
+  }
+
+  &.completed {
+    background-color: rgba(67, 160, 71, 0.1);
+    color: $color-success;
+  }
+
+  &.exception {
+    background-color: rgba(229, 57, 53, 0.1);
+    color: $color-error;
+  }
+
+  &.normal {
+    background-color: rgba(67, 160, 71, 0.1);
+    color: $color-success;
+  }
+
+  &.error {
+    background-color: rgba(229, 57, 53, 0.1);
+    color: $color-error;
+  }
+
+  &.warning {
+    background-color: rgba(251, 140, 0, 0.1);
+    color: $color-warning;
+  }
+}

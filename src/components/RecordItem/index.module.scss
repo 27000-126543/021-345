@@ -1,0 +1,143 @@
+@use '@/styles/variables.scss' as *;
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.labelRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.label {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+}
+
+.required {
+  color: $color-error;
+  margin-right: $spacing-xs;
+}
+
+.unit {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}
+
+.inputWrapper {
+  position: relative;
+}
+
+.input {
+  height: 96rpx;
+  padding: 0 $spacing-lg;
+  padding-right: 60rpx;
+  background-color: $color-bg-card;
+  border: 2rpx solid $color-border;
+  border-radius: $radius-md;
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  box-sizing: border-box;
+  width: 100%;
+  transition: all $transition-fast;
+
+  &.pending {
+    background-color: $color-bg-pending;
+    border-color: $color-warning;
+  }
+
+  &.error {
+    background-color: $color-bg-error;
+    border-color: $color-error;
+  }
+
+  &.warning {
+    background-color: $color-bg-pending;
+    border-color: $color-warning;
+  }
+}
+
+.picker {
+  height: 96rpx;
+  padding: 0 $spacing-lg;
+  padding-right: 60rpx;
+  background-color: $color-bg-card;
+  border: 2rpx solid $color-border;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  transition: all $transition-fast;
+
+  &.pending {
+    background-color: $color-bg-pending;
+    border-color: $color-warning;
+  }
+
+  &.error {
+    background-color: $color-bg-error;
+    border-color: $color-error;
+  }
+
+  &.warning {
+    background-color: $color-bg-pending;
+    border-color: $color-warning;
+  }
+}
+
+.value {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  width: 100%;
+
+  &.placeholder {
+    color: $color-text-tertiary;
+  }
+}
+
+.textarea {
+  min-height: 160rpx;
+  padding: $spacing-lg;
+  background-color: $color-bg-card;
+  border: 2rpx solid $color-border;
+  border-radius: $radius-md;
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  box-sizing: border-box;
+  width: 100%;
+  line-height: 1.6;
+  transition: all $transition-fast;
+
+  &.pending {
+    background-color: $color-bg-pending;
+    border-color: $color-warning;
+  }
+
+  &.error {
+    background-color: $color-bg-error;
+    border-color: $color-error;
+  }
+}
+
+.statusDot {
+  position: absolute;
+  right: $spacing-lg;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+}
+
+.errorMsg {
+  font-size: $font-size-sm;
+  color: $color-error;
+  line-height: 1.4;
+
+  &.warningMsg {
+    color: $color-warning;
+  }
+}

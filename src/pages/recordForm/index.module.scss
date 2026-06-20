@@ -1,0 +1,241 @@
+@use '@/styles/variables.scss' as *;
+
+.pageContainer {
+  padding: $page-padding;
+  padding-bottom: 160rpx;
+  min-height: 100vh;
+  background-color: $color-bg-page;
+  box-sizing: border-box;
+}
+
+.pileInfoCard {
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-lg;
+  box-shadow: $shadow-card;
+  color: $color-text-white;
+}
+
+.pileHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-md;
+}
+
+.pileNo {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+}
+
+.pileArea {
+  font-size: $font-size-sm;
+  opacity: 0.9;
+}
+
+.pileDesign {
+  display: flex;
+  gap: $spacing-xl;
+  padding-top: $spacing-md;
+  border-top: 2rpx solid rgba(255, 255, 255, 0.2);
+}
+
+.designItem {
+  flex: 1;
+}
+
+.designLabel {
+  font-size: $font-size-xs;
+  opacity: 0.8;
+  margin-bottom: $spacing-xs;
+}
+
+.designValue {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+}
+
+.validationSummary {
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+}
+
+.summaryTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+}
+
+.summaryContent {
+  display: flex;
+  gap: $spacing-md;
+  flex-wrap: wrap;
+}
+
+.summaryItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  padding: $spacing-sm $spacing-md;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+}
+
+.normal {
+  background-color: rgba(67, 160, 71, 0.1);
+  color: $color-success;
+}
+
+.pending {
+  background-color: rgba(251, 140, 0, 0.1);
+  color: $color-warning;
+}
+
+.error {
+  background-color: rgba(229, 57, 53, 0.1);
+  color: $color-error;
+}
+
+.summaryDot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  
+  &.normal {
+    background-color: $color-success;
+  }
+  
+  &.pending {
+    background-color: $color-warning;
+  }
+  
+  &.error {
+    background-color: $color-error;
+  }
+}
+
+.exceptionList {
+  margin-top: $spacing-md;
+  padding-top: $spacing-md;
+  border-top: 2rpx solid $color-divider;
+}
+
+.exceptionItem {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-sm;
+  padding: $spacing-sm 0;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+
+  &::before {
+    content: '⚠️';
+    flex-shrink: 0;
+  }
+}
+
+.emptyState {
+  padding: $spacing-xxl * 2 $page-padding;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+}
+
+.emptyIcon {
+  font-size: 120rpx;
+  margin-bottom: $spacing-lg;
+  opacity: 0.3;
+}
+
+.emptyTitle {
+  font-size: $font-size-lg;
+  color: $color-text-primary;
+  margin-bottom: $spacing-sm;
+}
+
+.emptyText {
+  font-size: $font-size-md;
+  color: $color-text-tertiary;
+  margin-bottom: $spacing-xl;
+}
+
+.bottomBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: $spacing-lg $page-padding;
+  padding-bottom: calc(#{$spacing-lg} + env(safe-area-inset-bottom));
+  background-color: $color-bg-card;
+  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: $spacing-md;
+  z-index: 100;
+}
+
+.saveBtn {
+  flex: 1;
+  height: $button-height-lg;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-button;
+  color: $color-text-white;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+
+  &.disabled {
+    background-color: $color-text-disabled;
+    opacity: 0.6;
+  }
+}
+
+.selectPileBtn {
+  flex: 1;
+  height: $button-height-lg;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-button;
+  color: $color-text-white;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
+
+.theoreticalVolume {
+  padding: $spacing-md;
+  background-color: rgba(30, 136, 229, 0.05);
+  border-radius: $radius-md;
+  border: 2rpx solid rgba(30, 136, 229, 0.2);
+}
+
+.volumeText {
+  font-size: $font-size-sm;
+  color: $color-primary;
+}
+
+.volumeValue {
+  font-weight: $font-weight-semibold;
+}
