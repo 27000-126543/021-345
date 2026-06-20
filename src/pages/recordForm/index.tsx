@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, Button } from '@tarojs/components'
+import { View, Text, Button, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import classnames from 'classnames'
 import { usePileStore } from '@/store/usePileStore'
-import { PileRecord } from '@/types/pile'
-import { RECORD_FIELDS } from '@/types/pile'
+import { PileRecord, ConstructionStage, CONSTRUCTION_STAGES, RECORD_FIELDS } from '@/types/pile'
 import FormSection from '@/components/FormSection'
 import RecordItem from '@/components/RecordItem'
 import StatusTag from '@/components/StatusTag'
+import StageProgress from '@/components/StageProgress'
+import { isStageComplete } from '@/utils/validator'
 import styles from './index.module.scss'
 
 const RecordFormPage: React.FC = () => {
@@ -16,19 +17,72 @@ const RecordFormPage: React.FC = () => {
   const currentValidation = usePileStore(state => state.currentValidation)
   const updateRecordField = usePileStore(state => state.updateRecordField)
   const saveCurrentRecord = usePileStore(state => state.saveCurrentRecord)
+  const saveStage = usePileStore(state => state.saveStage)
   const selectPile = usePileStore(state => state.selectPile)
+  const getRecordByPileId = usePileStore(state => state.getRecordByPileId)
 
   const [isSaving, setIsSaving] = useState(false)
+  const [isSavingStage, setIsSavingStage] = useState<string | null>(null)
+  const [activeStage, setActiveStage] = useState<ConstructionStage>('drill_start')
+  const [isExistingRecord, setIsExistingRecord] = useState(false)
 
   useEffect(() => {
     console.log('[RecordFormPage] 当前选中桩位:', selectedPile)
-  }, [selectedPile])
+    if (selectedPile) {
+      const existing = getRecordByPileId(selectedPile.id)
+      setIsExistingRecord(!!existing)
+      if (existing && currentRecord) {
+        setActiveStage(currentRecord.currentStage || 'drill_start')
+      }
+    }
+  }, [selectedPile, currentRecord?.currentStage])
 
   const handleFieldChange = (field: keyof PileRecord, value: any) => {
     updateRecordField(field, value)
   }
 
-  const handleSave = async () => {
+  const handleStageClick = (stage: ConstructionStage) => {
+    setActiveStage(stage)
+  }
+
+  const handleSaveStage = async (stage: ConstructionStage) => {
+    if (isSavingStage || !currentRecord) return
+
+    const complete = isStageComplete(stage, currentRecord)
+    if (!complete) {
+      Taro.showToast({ 
+        title: '请先填写完该阶段的所有必填项', 
+        icon: 'none' 
+      }).catch(err => console.error('[RecordFormPage] Toast失败:', err))
+      return
+    }
+
+    setIsSavingStage(stage)
+    try {
+      const success = saveStage(stage)
+      if (success) {
+        Taro.showToast({ title: '阶段保存成功', icon: 'success' })
+          .catch(err => console.error('[RecordFormPage] Toast失败:', err))
+        
+        const stageIndex = CONSTRUCTION_STAGES.findIndex(s => s.key === stage)
+        if (stageIndex < CONSTRUCTION_STAGES.length - 1) {
+          const nextStage = CONSTRUCTION_STAGES[stageIndex + 1].key
+          setActiveStage(nextStage)
+        }
+      } else {
+        Taro.showToast({ title: '保存失败', icon: 'error' })
+          .catch(err => console.error('[RecordFormPage] Toast失败:', err))
+      }
+    } catch (error) {
+      console.error('[RecordFormPage] 阶段保存异常:', error)
+      Taro.showToast({ title: '保存失败', icon: 'error' })
+        .catch(err => console.error('[RecordFormPage] Toast失败:', err))
+    } finally {
+      setTimeout(() => setIsSavingStage(null), 1000)
+    }
+  }
+
+  const handleSaveFull = async () => {
     if (isSaving) return
     
     if (!currentRecord) {
@@ -84,8 +138,21 @@ const RecordFormPage: React.FC = () => {
   }
 
   const handleSelectPile = () => {
+    selectPile(null)
     Taro.switchTab({ url: '/pages/pileList/index' })
       .catch(err => console.error('[RecordFormPage] 跳转失败:', err))
+  }
+
+  const handleClearSelection = () => {
+    Taro.showModal({
+      title: '确认取消',
+      content: '确定要取消当前记录吗？未保存的数据将丢失。',
+      confirmColor: '#E53935'
+    }).then(res => {
+      if (res.confirm) {
+        selectPile(null)
+      }
+    }).catch(err => console.error('[RecordFormPage] Modal失败:', err))
   }
 
   if (!selectedPile || !currentRecord) {
@@ -103,23 +170,41 @@ const RecordFormPage: React.FC = () => {
     )
   }
 
-  const basicFields = RECORD_FIELDS.slice(0, 4)
-  const constructionFields = RECORD_FIELDS.slice(4)
-
   const missingCount = currentValidation?.missingFields.length || 0
   const errorCount = currentValidation?.exceptions.filter(e => e.type === 'error').length || 0
   const warningCount = currentValidation?.exceptions.filter(e => e.type === 'warning').length || 0
   const normalCount = RECORD_FIELDS.length - missingCount - errorCount - warningCount
 
   const needsReason = currentValidation?.overallStatus === 'error' && !currentRecord.exceptionReason
+  const stages = currentRecord.stages || []
+
+  const getStageTitle = (stage: ConstructionStage) => {
+    const stageInfo = CONSTRUCTION_STAGES.find(s => s.key === stage)
+    return stageInfo?.label || stage
+  }
+
+  const getStageFields = (stage: ConstructionStage) => {
+    return RECORD_FIELDS.filter(f => f.stage === stage)
+  }
+
+  const isStageCompleted = (stage: ConstructionStage) => {
+    return stages.some(s => s.stage === stage && s.completed)
+  }
 
   return (
     <View className={styles.pageContainer}>
       <View className={styles.pileInfoCard}>
         <View className={styles.pileHeader}>
           <View>
-            <Text className={styles.pileNo}>{selectedPile.pileNo}</Text>
-            <Text className={styles.pileArea}> · {selectedPile.area}</Text>
+            <View className={styles.pileTitleRow}>
+              <Text className={styles.pileNo}>{selectedPile.pileNo}</Text>
+              <Text className={styles.pileArea}> · {selectedPile.area}</Text>
+            </View>
+            {isExistingRecord && (
+              <Text className={styles.existingTag}>
+                📝 已有记录，继续编辑中
+              </Text>
+            )}
           </View>
           <StatusTag status={selectedPile.status} />
         </View>
@@ -138,6 +223,13 @@ const RecordFormPage: React.FC = () => {
           </View>
         </View>
       </View>
+
+      <StageProgress
+        currentStage={currentRecord.currentStage || 'drill_start'}
+        stages={stages}
+        validation={currentValidation}
+        onStageClick={handleStageClick}
+      />
 
       <View className={styles.validationSummary}>
         <Text className={styles.summaryTitle}>数据校验</Text>
@@ -172,70 +264,133 @@ const RecordFormPage: React.FC = () => {
         )}
       </View>
 
-      <FormSection title='基础信息'>
-        {basicFields.map(field => (
-          <RecordItem
-            key={field.key}
-            label={field.label}
-            field={field.key}
-            value={currentRecord[field.key]}
-            validation={currentValidation}
-            type={field.key === 'drillStartTime' ? 'time' : 'text'}
-            unit={field.unit}
-            placeholder={field.placeholder}
-            required={field.required}
-            onChange={(val) => handleFieldChange(field.key, val)}
-          />
-        ))}
-      </FormSection>
+      <ScrollView className={styles.stagesScroll} scrollY>
+        {CONSTRUCTION_STAGES.map((stage) => {
+          const stageFields = getStageFields(stage.key)
+          const completed = isStageCompleted(stage.key)
+          const isActive = activeStage === stage.key
+          const canSave = isStageComplete(stage.key, currentRecord) && !completed
 
-      <FormSection title='施工参数'>
-        {constructionFields.map(field => (
-          <RecordItem
-            key={field.key}
-            label={field.label}
-            field={field.key}
-            value={currentRecord[field.key]}
-            validation={currentValidation}
-            type={field.key === 'cageLiftTime' ? 'time' : 'number'}
-            unit={field.unit}
-            placeholder={field.placeholder}
-            required={field.required}
-            onChange={(val) => handleFieldChange(field.key, val)}
-          />
-        ))}
-        
-        <View className={styles.theoreticalVolume}>
-          <Text className={styles.volumeText}>
-            理论混凝土灌注量：
-            <Text className={styles.volumeValue}>
-              {currentRecord.designConcreteVolume} m³
-            </Text>
-            （含1.1充盈系数）
-          </Text>
-        </View>
-      </FormSection>
+          return (
+            <View
+              key={stage.key}
+              className={classnames(styles.stageSection, {
+                [styles.active]: isActive,
+                [styles.completed]: completed
+              })}
+            >
+              <View
+                className={styles.stageHeader}
+                onClick={() => setActiveStage(isActive ? '' as ConstructionStage : stage.key)}
+              >
+                <View className={styles.stageHeaderLeft}>
+                  <View
+                    className={classnames(styles.stageCircle, {
+                      [styles.completed]: completed,
+                      [styles.error]: currentValidation?.stageStatus?.[stage.key] === 'error',
+                      [styles.pending]: currentValidation?.stageStatus?.[stage.key] === 'pending' && !completed
+                    })}
+                  >
+                    {completed ? (
+                      <Text className={styles.checkIcon}>✓</Text>
+                    ) : (
+                      <Text className={styles.stageIndex}>
+                        {CONSTRUCTION_STAGES.findIndex(s => s.key === stage.key) + 1}
+                      </Text>
+                    )}
+                  </View>
+                  <View>
+                    <Text className={styles.stageTitle}>{stage.label}</Text>
+                    <Text className={styles.stageSubtitle}>
+                      {stageFields.length}项内容
+                      {completed && stages.find(s => s.stage === stage.key)?.completedTime && (
+                        ` · 已保存: ${stages.find(s => s.stage === stage.key)?.completedTime?.split(' ')[1]}`
+                      )}
+                    </Text>
+                  </View>
+                </View>
+                <Text className={classnames(styles.expandIcon, { [styles.expanded]: isActive })}>
+                  ▼
+                </Text>
+              </View>
 
-      <FormSection title='异常说明'>
-        <RecordItem
-          label='异常原因'
-          field='exceptionReason'
-          value={currentRecord.exceptionReason}
-          validation={null}
-          type='textarea'
-          placeholder={needsReason ? '请填写异常原因说明...' : '如无异常可留空'}
-          required={needsReason}
-          onChange={(val) => handleFieldChange('exceptionReason', val)}
-        />
-      </FormSection>
+              {isActive && (
+                <View className={styles.stageContent}>
+                  <FormSection title={`${stage.label}阶段数据`}>
+                    {stageFields.map(field => (
+                      <RecordItem
+                        key={field.key}
+                        label={field.label}
+                        field={field.key}
+                        value={currentRecord[field.key]}
+                        validation={currentValidation}
+                        type={field.key === 'drillStartTime' || field.key === 'cageLiftTime' ? 'time' : (field.isNumeric ? 'number' : 'text')}
+                        unit={field.unit}
+                        placeholder={field.placeholder}
+                        required={field.required}
+                        onChange={(val) => handleFieldChange(field.key, val)}
+                      />
+                    ))}
+
+                    {stage.key === 'concrete' && (
+                      <View className={styles.theoreticalVolume}>
+                        <Text className={styles.volumeText}>
+                          理论混凝土灌注量：
+                          <Text className={styles.volumeValue}>
+                            {currentRecord.designConcreteVolume} m³
+                          </Text>
+                          （含1.1充盈系数）
+                        </Text>
+                      </View>
+                    )}
+                  </FormSection>
+
+                  <View className={styles.stageActions}>
+                    <Button
+                      className={classnames(styles.stageSaveBtn, {
+                        [styles.disabled]: !canSave || isSavingStage === stage.key
+                      })}
+                      onClick={() => handleSaveStage(stage.key)}
+                      disabled={!canSave || isSavingStage === stage.key}
+                    >
+                      {isSavingStage === stage.key ? '保存中...' : (completed ? '已完成' : `保存${stage.label}阶段`)}
+                    </Button>
+                  </View>
+                </View>
+              )}
+            </View>
+          )
+        })}
+
+        <FormSection title='异常说明'>
+          <RecordItem
+            label='异常原因'
+            field='exceptionReason'
+            value={currentRecord.exceptionReason}
+            validation={null}
+            type='textarea'
+            placeholder={needsReason ? '请填写异常原因说明...' : '如无异常可留空'}
+            required={needsReason}
+            onChange={(val) => handleFieldChange('exceptionReason', val)}
+          />
+        </FormSection>
+
+        <View className={styles.bottomSpacer} />
+      </ScrollView>
 
       <View className={styles.bottomBar}>
         <Button
+          className={styles.cancelBtn}
+          onClick={handleClearSelection}
+        >
+          取消
+        </Button>
+        <Button
           className={classnames(styles.saveBtn, { [styles.disabled]: isSaving })}
-          onClick={handleSave}
+          onClick={handleSaveFull}
           disabled={isSaving}
         >
-          {isSaving ? '保存中...' : '保存记录'}
+          {isSaving ? '保存中...' : '完整保存'}
         </Button>
       </View>
     </View>

@@ -1,17 +1,35 @@
-import { PileRecord, RecordValidation, ValidationException, RECORD_FIELDS } from '@/types/pile'
+import { PileRecord, RecordValidation, ValidationException, RECORD_FIELDS, CONSTRUCTION_STAGES, ConstructionStage, RecordField } from '@/types/pile'
+
+const isFieldEmpty = (value: any, field: RecordField): boolean => {
+  if (value === undefined || value === null) return true
+  if (value === '') return true
+  if (field.isNumeric) {
+    const numValue = Number(value)
+    return isNaN(numValue) || numValue <= 0
+  }
+  return false
+}
 
 export const validateRecord = (record: Partial<PileRecord>): RecordValidation => {
   const missingFields: string[] = []
   const exceptions: ValidationException[] = []
+  const stageStatus: Record<ConstructionStage, 'normal' | 'pending' | 'error'> = {
+    drill_start: 'normal',
+    drill_end: 'normal',
+    cage: 'normal',
+    concrete: 'normal'
+  }
 
   console.log('[Validator] 开始校验记录:', record.pileNo)
 
   RECORD_FIELDS.forEach(field => {
     const value = record[field.key]
-    if (field.required && (value === undefined || value === null || value === '')) {
+    if (field.required && isFieldEmpty(value, field)) {
       missingFields.push(field.key)
     }
   })
+
+  console.log('[Validator] 未填字段:', missingFields)
 
   if (record.actualDepth !== undefined && record.designLength !== undefined) {
     const actualDepth = Number(record.actualDepth)
@@ -20,7 +38,8 @@ export const validateRecord = (record: Partial<PileRecord>): RecordValidation =>
       exceptions.push({
         field: 'actualDepth',
         message: `实际孔深(${actualDepth}m)小于设计桩长(${designLength}m)`,
-        type: 'error'
+        type: 'error',
+        stage: 'drill_end'
       })
     }
   }
@@ -34,7 +53,8 @@ export const validateRecord = (record: Partial<PileRecord>): RecordValidation =>
         exceptions.push({
           field: 'concreteVolume',
           message: `灌注方量偏差${(deviation * 100).toFixed(1)}%，超过15%阈值`,
-          type: 'warning'
+          type: 'warning',
+          stage: 'concrete'
         })
       }
     }
@@ -46,7 +66,8 @@ export const validateRecord = (record: Partial<PileRecord>): RecordValidation =>
       exceptions.push({
         field: 'mudWeight',
         message: `泥浆比重(${mudWeight})超出正常范围(1.1-1.3)`,
-        type: 'warning'
+        type: 'warning',
+        stage: 'drill_end'
       })
     }
   }
@@ -57,10 +78,25 @@ export const validateRecord = (record: Partial<PileRecord>): RecordValidation =>
       exceptions.push({
         field: 'sedimentThickness',
         message: `沉渣厚度(${sediment}cm)超过10cm限值`,
-        type: 'error'
+        type: 'error',
+        stage: 'drill_end'
       })
     }
   }
+
+  CONSTRUCTION_STAGES.forEach(stage => {
+    const stageFields = RECORD_FIELDS.filter(f => f.stage === stage.key)
+    const hasMissing = stageFields.some(f => missingFields.includes(f.key as string))
+    const hasError = exceptions.some(e => e.stage === stage.key && e.type === 'error')
+    
+    if (hasError) {
+      stageStatus[stage.key] = 'error'
+    } else if (hasMissing) {
+      stageStatus[stage.key] = 'pending'
+    } else {
+      stageStatus[stage.key] = 'normal'
+    }
+  })
 
   let overallStatus: 'normal' | 'pending' | 'error' = 'normal'
   if (missingFields.length > 0) {
@@ -73,20 +109,23 @@ export const validateRecord = (record: Partial<PileRecord>): RecordValidation =>
   console.log('[Validator] 校验完成:', {
     missingFields,
     exceptions,
-    overallStatus
+    overallStatus,
+    stageStatus
   })
 
   return {
     missingFields,
     exceptions,
-    overallStatus
+    overallStatus,
+    stageStatus
   }
 }
 
 export const getFieldStatus = (
   fieldKey: string,
-  validation: RecordValidation
+  validation: RecordValidation | null
 ): 'normal' | 'pending' | 'error' | 'warning' => {
+  if (!validation) return 'normal'
   if (validation.missingFields.includes(fieldKey)) {
     return 'pending'
   }
@@ -98,7 +137,16 @@ export const getFieldStatus = (
 }
 
 export const calculateDesignConcreteVolume = (diameter: number, length: number): number => {
+  if (diameter <= 0 || length <= 0) return 0
   const radius = diameter / 2000
   const volume = Math.PI * radius * radius * length * 1.1
   return Number(volume.toFixed(2))
+}
+
+export const isStageComplete = (
+  stage: ConstructionStage,
+  record: Partial<PileRecord>
+): boolean => {
+  const stageFields = RECORD_FIELDS.filter(f => f.stage === stage)
+  return stageFields.every(field => !isFieldEmpty(record[field.key], field))
 }

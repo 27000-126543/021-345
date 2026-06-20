@@ -6,18 +6,23 @@ import dayjs from 'dayjs'
 import { usePileStore } from '@/store/usePileStore'
 import { initMockData } from '@/data/mockPiles'
 import PileCard from '@/components/PileCard'
+import PileMap from '@/components/PileMap'
 import { PileInfo } from '@/types/pile'
 import styles from './index.module.scss'
+
+type ViewMode = 'list' | 'map'
 
 const PileListPage: React.FC = () => {
   const [selectedArea, setSelectedArea] = useState<string>('all')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   const piles = usePileStore(state => state.piles)
   const loadPiles = usePileStore(state => state.loadPiles)
   const getStats = usePileStore(state => state.getStats)
   const selectPile = usePileStore(state => state.selectPile)
+  const getRecordByPileId = usePileStore(state => state.getRecordByPileId)
 
   useEffect(() => {
     initMockData()
@@ -35,6 +40,11 @@ const PileListPage: React.FC = () => {
     { label: '施工中', value: 'in_progress' },
     { label: '已完成', value: 'completed' },
     { label: '异常', value: 'exception' }
+  ]
+
+  const viewModeOptions = [
+    { label: '列表', value: 'list' as ViewMode, icon: '📋' },
+    { label: '平面图', value: 'map' as ViewMode, icon: '🗺️' }
   ]
 
   const filteredPiles = piles.filter(pile => {
@@ -70,9 +80,25 @@ const PileListPage: React.FC = () => {
   }, [])
 
   const handlePileClick = (pile: PileInfo) => {
-    selectPile(pile)
-    Taro.switchTab({ url: '/pages/recordForm/index' })
-      .catch(err => console.error('[PileListPage] 跳转失败:', err))
+    const existingRecord = getRecordByPileId(pile.id)
+    if (existingRecord) {
+      Taro.showModal({
+        title: '提示',
+        content: `桩位 ${pile.pileNo} 已有记录，是否继续编辑？`,
+        confirmText: '继续编辑',
+        cancelText: '取消'
+      }).then(res => {
+        if (res.confirm) {
+          selectPile(pile)
+          Taro.switchTab({ url: '/pages/recordForm/index' })
+            .catch(err => console.error('[PileListPage] 跳转失败:', err))
+        }
+      }).catch(err => console.error('[PileListPage] Modal失败:', err))
+    } else {
+      selectPile(pile)
+      Taro.switchTab({ url: '/pages/recordForm/index' })
+        .catch(err => console.error('[PileListPage] 跳转失败:', err))
+    }
   }
 
   const today = dayjs().format('YYYY年MM月DD日')
@@ -120,40 +146,76 @@ const PileListPage: React.FC = () => {
               </View>
             </Picker>
           </View>
+
+          <View className={styles.filterItem}>
+            <Text className={styles.filterLabel}>视图</Text>
+            <View className={styles.viewModeTabs}>
+              {viewModeOptions.map(option => (
+                <View
+                  key={option.value}
+                  className={classnames(styles.viewModeTab, {
+                    [styles.active]: viewMode === option.value
+                  })}
+                  onClick={() => setViewMode(option.value)}
+                >
+                  <Text className={styles.viewModeIcon}>{option.icon}</Text>
+                  <Text className={styles.viewModeText}>{option.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
         </View>
 
-        <ScrollView className={styles.statusTabs} scrollX>
-          {statusOptions.map(option => (
-            <View
-              key={option.value}
-              className={classnames(styles.tabItem, { [styles.active]: selectedStatus === option.value })}
-              onClick={() => setSelectedStatus(option.value)}
-            >
-              <Text>{option.label}</Text>
-            </View>
-          ))}
-        </ScrollView>
+        {viewMode === 'list' && (
+          <>
+            <ScrollView className={styles.statusTabs} scrollX>
+              {statusOptions.map(option => (
+                <View
+                  key={option.value}
+                  className={classnames(styles.tabItem, { [styles.active]: selectedStatus === option.value })}
+                  onClick={() => setSelectedStatus(option.value)}
+                >
+                  <Text>{option.label}</Text>
+                </View>
+              ))}
+            </ScrollView>
 
-        <ScrollView className={styles.listContainer} scrollY>
-          {filteredPiles.length === 0 ? (
-            <View className={styles.emptyState}>
-              <Text className={styles.emptyIcon}>📋</Text>
-              <Text className={styles.emptyText}>暂无符合条件的桩位</Text>
-            </View>
-          ) : (
-            filteredPiles.map(pile => (
-              <PileCard
-                key={pile.id}
-                pile={pile}
-                onClick={() => handlePileClick(pile)}
-              />
-            ))
-          )}
-          
-          {isRefreshing && (
-            <Text className={styles.loadingText}>刷新中...</Text>
-          )}
-        </ScrollView>
+            <ScrollView className={styles.listContainer} scrollY>
+              {filteredPiles.length === 0 ? (
+                <View className={styles.emptyState}>
+                  <Text className={styles.emptyIcon}>📋</Text>
+                  <Text className={styles.emptyText}>暂无符合条件的桩位</Text>
+                </View>
+              ) : (
+                filteredPiles.map(pile => (
+                  <PileCard
+                    key={pile.id}
+                    pile={pile}
+                    onClick={() => handlePileClick(pile)}
+                  />
+                ))
+              )}
+              
+              {isRefreshing && (
+                <Text className={styles.loadingText}>刷新中...</Text>
+              )}
+            </ScrollView>
+          </>
+        )}
+
+        {viewMode === 'map' && (
+          <View className={styles.mapContainer}>
+            <PileMap
+              piles={filteredPiles}
+              selectedArea={selectedArea}
+              onPileClick={handlePileClick}
+            />
+            
+            {isRefreshing && (
+              <Text className={styles.loadingText}>刷新中...</Text>
+            )}
+          </View>
+        )}
       </View>
     </View>
   )

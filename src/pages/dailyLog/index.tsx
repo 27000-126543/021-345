@@ -14,6 +14,7 @@ const DailyLogPage: React.FC = () => {
   const [signName, setSignName] = useState('')
   const [pendingLogId, setPendingLogId] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null)
 
   const todayRecords = usePileStore(state => state.getTodayRecords())
   const dailyLogs = usePileStore(state => state.dailyLogs)
@@ -48,6 +49,16 @@ const DailyLogPage: React.FC = () => {
       return
     }
 
+    if (todayLog?.isLocked) {
+      Taro.showModal({
+        title: '日志已锁定',
+        content: '该日志已由技术负责人签字，无法重新生成',
+        showCancel: false,
+        confirmText: '我知道了'
+      }).catch(err => console.error('[DailyLogPage] Modal失败:', err))
+      return
+    }
+
     setIsGenerating(true)
     try {
       const log = generateDailyLog(selectedDate)
@@ -65,6 +76,15 @@ const DailyLogPage: React.FC = () => {
   }
 
   const handleSignClick = (logId: string) => {
+    const log = dailyLogs.find(l => l.id === logId)
+    if (!log) return
+
+    if (log.isLocked) {
+      Taro.showToast({ title: '该日志已签字锁定', icon: 'none' })
+        .catch(err => console.error('[DailyLogPage] Toast失败:', err))
+      return
+    }
+
     setPendingLogId(logId)
     setSignName('')
     setShowSignModal(true)
@@ -78,6 +98,16 @@ const DailyLogPage: React.FC = () => {
     }
 
     if (pendingLogId) {
+      const log = dailyLogs.find(l => l.id === pendingLogId)
+      if (log?.isLocked) {
+        Taro.showToast({ title: '该日志已签字锁定', icon: 'none' })
+          .catch(err => console.error('[DailyLogPage] Toast失败:', err))
+        setShowSignModal(false)
+        setPendingLogId(null)
+        setSignName('')
+        return
+      }
+
       const success = signDailyLog(pendingLogId, signName.trim())
       if (success) {
         Taro.showToast({ title: '签字成功', icon: 'success' })
@@ -90,6 +120,10 @@ const DailyLogPage: React.FC = () => {
     setShowSignModal(false)
     setPendingLogId(null)
     setSignName('')
+  }
+
+  const toggleLogExpand = (logId: string) => {
+    setExpandedLogId(expandedLogId === logId ? null : logId)
   }
 
   const dateRange = {
@@ -108,6 +142,88 @@ const DailyLogPage: React.FC = () => {
       case 'error': return 'error'
       default: return 'normal'
     }
+  }
+
+  const getStageLabel = (stage: string) => {
+    const labels: Record<string, string> = {
+      'drill_start': '开钻',
+      'drill_end': '终孔',
+      'cage': '下笼',
+      'concrete': '灌注'
+    }
+    return labels[stage] || stage
+  }
+
+  const renderRecordDetail = (record: any) => {
+    return (
+      <View key={record.pileNo} className={styles.recordDetailItem}>
+        <View className={styles.recordDetailHeader}>
+          <Text className={styles.recordDetailPileNo}>{record.pileNo}</Text>
+          <StatusTag status={getStatusColor(record.status)} />
+        </View>
+        <View className={styles.recordDetailGrid}>
+          <View className={styles.recordDetailGridItem}>
+            <Text className={styles.gridLabel}>设计桩长</Text>
+            <Text className={styles.gridValue}>{record.designLength}m</Text>
+          </View>
+          <View className={styles.recordDetailGridItem}>
+            <Text className={styles.gridLabel}>实际孔深</Text>
+            <Text className={classnames(styles.gridValue, {
+              [styles.gridValueWarning]: record.actualDepth < record.designLength
+            })}>{record.actualDepth}m</Text>
+          </View>
+          <View className={styles.recordDetailGridItem}>
+            <Text className={styles.gridLabel}>泥浆比重</Text>
+            <Text className={classnames(styles.gridValue, {
+              [styles.gridValueWarning]: record.mudWeight && (record.mudWeight < 1.1 || record.mudWeight > 1.3)
+            })}>{record.mudWeight || '-'}</Text>
+          </View>
+          <View className={styles.recordDetailGridItem}>
+            <Text className={styles.gridLabel}>沉渣厚度</Text>
+            <Text className={classnames(styles.gridValue, {
+              [styles.gridValueWarning]: record.sedimentThickness && record.sedimentThickness > 10
+            })}>{record.sedimentThickness ? `${record.sedimentThickness}cm` : '-'}</Text>
+          </View>
+          <View className={styles.recordDetailGridItem}>
+            <Text className={styles.gridLabel}>设计方量</Text>
+            <Text className={styles.gridValue}>{record.theoreticalVolume.toFixed(2)}m³</Text>
+          </View>
+          <View className={styles.recordDetailGridItem}>
+            <Text className={styles.gridLabel}>实际灌注</Text>
+            <Text className={classnames(styles.gridValue, {
+              [styles.gridValueWarning]: record.concreteVolume && Math.abs((record.concreteVolume - record.theoreticalVolume) / record.theoreticalVolume) > 0.15
+            })}>{record.concreteVolume ? `${record.concreteVolume}m³` : '-'}</Text>
+          </View>
+        </View>
+        <View className={styles.recordDetailStages}>
+          <Text className={styles.stagesLabel}>施工阶段：</Text>
+          {record.completedStages.map((stage: string, idx: number) => (
+            <Text key={stage} className={styles.stageTag}>
+              {getStageLabel(stage)}
+              {idx < record.completedStages.length - 1 ? ' → ' : ''}
+            </Text>
+          ))}
+          {record.pendingStages.length > 0 && (
+            <Text className={styles.stagePending}>
+              （待完成：{record.pendingStages.map((s: string) => getStageLabel(s)).join('、')}）
+            </Text>
+          )}
+        </View>
+        {record.exceptions.length > 0 && (
+          <View className={styles.recordDetailExceptions}>
+            <Text className={styles.exceptionsLabel}>异常说明：</Text>
+            {record.exceptions.map((ex: any, idx: number) => (
+              <View key={idx} className={styles.exceptionRow}>
+                <Text className={styles.exceptionType}>{ex.field}</Text>
+                <Text className={styles.exceptionDesc}>{ex.message}</Text>
+                {ex.reason && <Text className={styles.exceptionReason}>[说明] {ex.reason}</Text>}
+                {!ex.reason && <Text className={styles.exceptionNoReason}>⚠️ 未说明原因</Text>}
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    )
   }
 
   return (
@@ -208,31 +324,112 @@ const DailyLogPage: React.FC = () => {
             <View className={styles.historyList}>
               {filteredLogs.map((log: DailyLog) => (
                 <View key={log.id} className={styles.historyCard}>
-                  <View className={styles.historyInfo}>
-                    <Text className={styles.historyDate}>{formatDate(log.date)}</Text>
-                    <View className={styles.historyStats}>
-                      <Text className={styles.historyStatItem}>总桩数：{log.totalPiles}</Text>
-                      <Text className={styles.historyStatItem}>合格：{log.completedPiles}</Text>
-                      <Text className={styles.historyStatItem}>异常：{log.exceptionPiles}</Text>
+                  <View
+                    className={styles.historyHeader}
+                    onClick={() => toggleLogExpand(log.id)}
+                  >
+                    <View className={styles.historyInfo}>
+                      <View className={styles.historyDateRow}>
+                        <Text className={styles.historyDate}>{formatDate(log.date)}</Text>
+                        {log.isLocked && (
+                          <Text className={styles.lockedTag}>🔒 已锁定</Text>
+                        )}
+                      </View>
+                      <View className={styles.historyStats}>
+                        <Text className={styles.historyStatItem}>总桩数：{log.totalPiles}</Text>
+                        <Text className={styles.historyStatItem}>合格：{log.completedPiles}</Text>
+                        <Text className={styles.historyStatItem}>异常：{log.exceptionPiles}</Text>
+                      </View>
+                      {log.signedBy && (
+                        <Text className={styles.historyStatItem} style={{ marginTop: 8, color: '#43A047' }}>
+                          已签字：{log.signedBy} · {log.signTime}
+                        </Text>
+                      )}
+                      {log.pendingReasons && log.pendingReasons.length > 0 && log.status !== 'signed' && (
+                        <View className={styles.pendingReasonsBox}>
+                          <Text className={styles.pendingTitle}>⚠️ 待补项（{log.pendingReasons.length}项）：</Text>
+                          {log.pendingReasons.slice(0, 3).map((reason, idx) => (
+                            <Text key={idx} className={styles.pendingReason}>
+                              · {reason}
+                            </Text>
+                          ))}
+                          {log.pendingReasons.length > 3 && (
+                            <Text className={styles.pendingMore}>
+                              ...还有 {log.pendingReasons.length - 3} 项待补，点击展开查看
+                            </Text>
+                          )}
+                        </View>
+                      )}
                     </View>
-                    {log.signedBy && (
-                      <Text className={styles.historyStatItem} style={{ marginTop: 8, color: '#43A047' }}>
-                        已签字：{log.signedBy} · {log.signTime}
-                      </Text>
-                    )}
+                    <View className={styles.historyStatus}>
+                      <Text className={classnames(styles.expandIcon, {
+                        [styles.expanded]: expandedLogId === log.id
+                      })}>▼</Text>
+                    </View>
                   </View>
-                  <View className={styles.historyStatus}>
-                    {log.status === 'signed' ? (
-                      <StatusTag status='normal' text='已签字' />
-                    ) : (
-                      <Button
-                        className={classnames(styles.modalBtn, styles.confirm)}
-                        style={{ height: 64, fontSize: 24, padding: '0 24rpx' }}
-                        onClick={() => handleSignClick(log.id)}
-                      >
-                        签字
-                      </Button>
-                    )}
+
+                  {expandedLogId === log.id && log.recordDetails && (
+                    <View className={styles.expandedContent}>
+                      <View className={styles.expandedSection}>
+                        <Text className={styles.expandedSectionTitle}>📊 当日桩位详情</Text>
+                        <View className={styles.recordDetailList}>
+                          {log.recordDetails.map(record => renderRecordDetail(record))}
+                        </View>
+                      </View>
+
+                      {log.pendingReasons && log.pendingReasons.length > 0 && (
+                        <View className={styles.expandedSection}>
+                          <Text className={styles.expandedSectionTitle}>⚠️ 待补原因汇总</Text>
+                          <View className={styles.pendingReasonsList}>
+                            {log.pendingReasons.map((reason, idx) => (
+                              <Text key={idx} className={styles.pendingReasonFull}>
+                                {idx + 1}. {reason}
+                              </Text>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+
+                      {log.weather || log.constructionSituation || log.existingProblems ? (
+                        <View className={styles.expandedSection}>
+                          <Text className={styles.expandedSectionTitle}>📝 日志内容</Text>
+                          {log.weather && (
+                            <View className={styles.logContentRow}>
+                              <Text className={styles.logContentLabel}>天气：</Text>
+                              <Text className={styles.logContentValue}>{log.weather}</Text>
+                            </View>
+                          )}
+                          {log.constructionSituation && (
+                            <View className={styles.logContentRow}>
+                              <Text className={styles.logContentLabel}>施工情况：</Text>
+                              <Text className={styles.logContentValue}>{log.constructionSituation}</Text>
+                            </View>
+                          )}
+                          {log.existingProblems && (
+                            <View className={styles.logContentRow}>
+                              <Text className={styles.logContentLabel}>存在问题：</Text>
+                              <Text className={styles.logContentValue}>{log.existingProblems}</Text>
+                            </View>
+                          )}
+                        </View>
+                      ) : null}
+                    </View>
+                  )}
+
+                  <View className={styles.historyFooter}>
+                    <View className={styles.historyStatus}>
+                      {log.status === 'signed' ? (
+                        <StatusTag status='normal' text='已签字' />
+                      ) : (
+                        <Button
+                          className={classnames(styles.modalBtn, styles.confirm)}
+                          style={{ height: 64, fontSize: 24, padding: '0 24rpx' }}
+                          onClick={() => handleSignClick(log.id)}
+                        >
+                          {log.isLocked ? '已锁定' : '签字'}
+                        </Button>
+                      )}
+                    </View>
                   </View>
                 </View>
               ))}
@@ -245,9 +442,9 @@ const DailyLogPage: React.FC = () => {
         <Button
           className={classnames(styles.generateBtn, { [styles.disabled]: isGenerating || filteredRecords.length === 0 })}
           onClick={handleGenerateLog}
-          disabled={isGenerating || filteredRecords.length === 0}
+          disabled={isGenerating || filteredRecords.length === 0 || (todayLog?.isLocked || false)}
         >
-          {isGenerating ? '生成中...' : todayLog ? '重新生成日志' : '一键生成日志'}
+          {todayLog?.isLocked ? '🔒 已锁定' : (isGenerating ? '生成中...' : todayLog ? '重新生成日志' : '一键生成日志')}
         </Button>
       </View>
 
@@ -255,6 +452,23 @@ const DailyLogPage: React.FC = () => {
         <View className={styles.signModal} onClick={() => setShowSignModal(false)}>
           <View className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
             <Text className={styles.modalTitle}>技术负责人签字</Text>
+            
+            {pendingLogId && dailyLogs.find(l => l.id === pendingLogId)?.pendingReasons && 
+             dailyLogs.find(l => l.id === pendingLogId)!.pendingReasons!.length > 0 && (
+              <View className={styles.modalWarning}>
+                <Text className={styles.modalWarningTitle}>⚠️ 待补项提醒</Text>
+                {dailyLogs.find(l => l.id === pendingLogId)!.pendingReasons!.slice(0, 5).map((reason, idx) => (
+                  <Text key={idx} className={styles.modalWarningItem}>· {reason}</Text>
+                ))}
+                {dailyLogs.find(l => l.id === pendingLogId)!.pendingReasons!.length > 5 && (
+                  <Text className={styles.modalWarningMore}>
+                    ...还有 {dailyLogs.find(l => l.id === pendingLogId)!.pendingReasons!.length - 5} 项待补
+                  </Text>
+                )}
+                <Text className={styles.modalWarningTip}>仍要继续签字吗？</Text>
+              </View>
+            )}
+            
             <Input
               className={styles.modalInput}
               placeholder='请输入姓名'

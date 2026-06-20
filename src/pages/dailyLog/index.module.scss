@@ -185,16 +185,20 @@
 .historyCard {
   background-color: $color-bg-card;
   border-radius: $radius-lg;
-  padding: $spacing-lg;
   box-shadow: $shadow-card;
+  overflow: hidden;
+  transition: all $transition-base;
+}
+
+.historyHeader {
+  padding: $spacing-lg;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  transition: all $transition-base;
+  align-items: flex-start;
+  transition: all $transition-fast;
 
   &:active {
-    transform: scale(0.98);
-    opacity: 0.9;
+    background-color: $color-bg-hover;
   }
 }
 
@@ -202,16 +206,31 @@
   flex: 1;
 }
 
+.historyDateRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  margin-bottom: $spacing-sm;
+}
+
 .historyDate {
   font-size: $font-size-lg;
   font-weight: $font-weight-semibold;
   color: $color-text-primary;
-  margin-bottom: $spacing-sm;
+}
+
+.lockedTag {
+  font-size: $font-size-xs;
+  background-color: rgba(229, 57, 53, 0.1);
+  color: $color-error;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-xs;
 }
 
 .historyStats {
   display: flex;
   gap: $spacing-lg;
+  flex-wrap: wrap;
 }
 
 .historyStatItem {
@@ -219,8 +238,218 @@
   color: $color-text-secondary;
 }
 
+.pendingReasonsBox {
+  margin-top: $spacing-md;
+  padding: $spacing-md;
+  background-color: rgba(251, 140, 0, 0.1);
+  border-radius: $radius-md;
+  border-left: 6rpx solid $color-warning;
+}
+
+.pendingTitle {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-warning;
+  margin-bottom: $spacing-sm;
+}
+
+.pendingReason {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  line-height: 1.6;
+  display: block;
+}
+
+.pendingMore {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: $spacing-xs;
+  display: block;
+}
+
 .historyStatus {
   flex-shrink: 0;
+  margin-left: $spacing-md;
+}
+
+.expandIcon {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  transition: transform $transition-base;
+
+  &.expanded {
+    transform: rotate(180deg);
+  }
+}
+
+.expandedContent {
+  border-top: 2rpx solid $color-divider;
+  padding: 0 $spacing-lg $spacing-lg;
+}
+
+.expandedSection {
+  margin-top: $spacing-lg;
+}
+
+.expandedSectionTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+}
+
+.recordDetailList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.recordDetailItem {
+  background-color: $color-bg-page;
+  border-radius: $radius-md;
+  padding: $spacing-md;
+}
+
+.recordDetailHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-md;
+}
+
+.recordDetailPileNo {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+}
+
+.recordDetailGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $spacing-md;
+  margin-bottom: $spacing-md;
+}
+
+.recordDetailGridItem {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.gridLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.gridValue {
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+
+  &.gridValueWarning {
+    color: $color-error;
+  }
+}
+
+.recordDetailStages {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  margin-bottom: $spacing-sm;
+  line-height: 1.8;
+}
+
+.stagesLabel {
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+}
+
+.stageTag {
+  color: $color-primary;
+  font-weight: $font-weight-medium;
+}
+
+.stagePending {
+  color: $color-warning;
+  margin-left: $spacing-sm;
+}
+
+.recordDetailExceptions {
+  background-color: rgba(229, 57, 53, 0.05);
+  border-radius: $radius-sm;
+  padding: $spacing-sm $spacing-md;
+  margin-top: $spacing-sm;
+}
+
+.exceptionsLabel {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-error;
+  margin-bottom: $spacing-sm;
+  display: block;
+}
+
+.exceptionRow {
+  font-size: $font-size-xs;
+  line-height: 1.8;
+  margin-bottom: $spacing-xs;
+}
+
+.exceptionType {
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+}
+
+.exceptionDesc {
+  color: $color-text-secondary;
+  margin: 0 $spacing-sm;
+}
+
+.exceptionReason {
+  color: $color-success;
+}
+
+.exceptionNoReason {
+  color: $color-warning;
+  font-weight: $font-weight-medium;
+}
+
+.pendingReasonsList {
+  background-color: rgba(251, 140, 0, 0.05);
+  border-radius: $radius-md;
+  padding: $spacing-md;
+}
+
+.pendingReasonFull {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: 2;
+  display: block;
+}
+
+.logContentRow {
+  display: flex;
+  margin-bottom: $spacing-sm;
+  font-size: $font-size-sm;
+  line-height: 1.6;
+}
+
+.logContentLabel {
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  flex-shrink: 0;
+  min-width: 120rpx;
+}
+
+.logContentValue {
+  color: $color-text-secondary;
+  flex: 1;
+}
+
+.historyFooter {
+  padding: $spacing-md $spacing-lg;
+  border-top: 2rpx solid $color-divider;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .emptyState {
@@ -312,6 +541,44 @@
   color: $color-text-primary;
   text-align: center;
   margin-bottom: $spacing-xl;
+}
+
+.modalWarning {
+  background-color: rgba(251, 140, 0, 0.1);
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  margin-bottom: $spacing-lg;
+  border-left: 6rpx solid $color-warning;
+}
+
+.modalWarningTitle {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $color-warning;
+  margin-bottom: $spacing-sm;
+  display: block;
+}
+
+.modalWarningItem {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  line-height: 1.8;
+  display: block;
+}
+
+.modalWarningMore {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: $spacing-xs;
+  display: block;
+}
+
+.modalWarningTip {
+  font-size: $font-size-xs;
+  color: $color-warning;
+  font-weight: $font-weight-medium;
+  margin-top: $spacing-sm;
+  display: block;
 }
 
 .modalInput {

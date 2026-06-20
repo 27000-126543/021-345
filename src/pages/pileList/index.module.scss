@@ -109,6 +109,50 @@
   width: 100%;
 }
 
+.viewModeTabs {
+  display: flex;
+  gap: $spacing-xs;
+  background-color: $color-bg-page;
+  border-radius: $radius-md;
+  padding: $spacing-xs;
+  height: 72rpx;
+  box-sizing: border-box;
+}
+
+.viewModeTab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-xs;
+  border-radius: $radius-sm;
+  transition: all $transition-base;
+
+  &.active {
+    background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+    
+    .viewModeText,
+    .viewModeIcon {
+      color: $color-text-white;
+    }
+  }
+}
+
+.viewModeIcon {
+  font-size: $font-size-md;
+}
+
+.viewModeText {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  font-weight: $font-weight-medium;
+}
+
+.mapContainer {
+  display: flex;
+  flex-direction: column;
+}
+
 .statusTabs {
   display: flex;
   gap: $spacing-sm;

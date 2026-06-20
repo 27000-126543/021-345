@@ -2,7 +2,7 @@
 
 .pageContainer {
   padding: $page-padding;
-  padding-bottom: 160rpx;
+  padding-bottom: 0;
   min-height: 100vh;
   background-color: $color-bg-page;
   box-sizing: border-box;
@@ -12,7 +12,7 @@
   background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
   border-radius: $radius-lg;
   padding: $spacing-lg;
-  margin-bottom: $spacing-lg;
+  margin-bottom: $spacing-md;
   box-shadow: $shadow-card;
   color: $color-text-white;
 }
@@ -20,8 +20,14 @@
 .pileHeader {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: $spacing-md;
+}
+
+.pileTitleRow {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: $spacing-xs;
 }
 
 .pileNo {
@@ -32,6 +38,14 @@
 .pileArea {
   font-size: $font-size-sm;
   opacity: 0.9;
+}
+
+.existingTag {
+  font-size: $font-size-xs;
+  background: rgba(255, 255, 255, 0.2);
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-xs;
+  display: inline-block;
 }
 
 .pileDesign {
@@ -139,6 +153,141 @@
   }
 }
 
+.stagesScroll {
+  height: calc(100vh - 700rpx);
+  overflow-y: auto;
+}
+
+.stageSection {
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+  overflow: hidden;
+  transition: all $transition-base;
+
+  &.completed {
+    border-left: 8rpx solid $color-success;
+  }
+
+  &.active {
+    border-left: 8rpx solid $color-primary;
+  }
+}
+
+.stageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-lg;
+  transition: all $transition-fast;
+
+  &:active {
+    background-color: $color-bg-hover;
+  }
+}
+
+.stageHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.stageCircle {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  border: 4rpx solid $color-border;
+  background-color: $color-bg-page;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+
+  &.completed {
+    background-color: $color-success;
+    border-color: $color-success;
+  }
+
+  &.error {
+    border-color: $color-error;
+    background-color: rgba(229, 57, 53, 0.1);
+  }
+
+  &.pending {
+    border-color: $color-warning;
+    background-color: rgba(251, 140, 0, 0.1);
+  }
+}
+
+.checkIcon {
+  color: $color-text-white;
+  font-size: 28rpx;
+  font-weight: $font-weight-bold;
+}
+
+.stageIndex {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-secondary;
+}
+
+.stageTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.stageSubtitle {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.expandIcon {
+  font-size: $font-size-md;
+  color: $color-text-tertiary;
+  transition: transform $transition-base;
+
+  &.expanded {
+    transform: rotate(180deg);
+  }
+}
+
+.stageContent {
+  padding: 0 $spacing-lg $spacing-lg;
+  border-top: 2rpx solid $color-divider;
+  padding-top: $spacing-lg;
+}
+
+.stageActions {
+  margin-top: $spacing-md;
+}
+
+.stageSaveBtn {
+  width: 100%;
+  height: $button-height-md;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-button;
+  color: $color-text-white;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+
+  &.disabled {
+    background-color: $color-text-disabled;
+    opacity: 0.6;
+  }
+}
+
 .emptyState {
   padding: $spacing-xxl * 2 $page-padding;
   text-align: center;
@@ -167,6 +316,10 @@
   margin-bottom: $spacing-xl;
 }
 
+.bottomSpacer {
+  height: 160rpx;
+}
+
 .bottomBar {
   position: fixed;
   bottom: 0;
@@ -179,6 +332,26 @@
   display: flex;
   gap: $spacing-md;
   z-index: 100;
+}
+
+.cancelBtn {
+  width: 160rpx;
+  height: $button-height-lg;
+  background-color: $color-bg-page;
+  border: 2rpx solid $color-border;
+  border-radius: $radius-button;
+  color: $color-text-secondary;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
 }
 
 .saveBtn {

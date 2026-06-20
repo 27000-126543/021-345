@@ -1,0 +1,135 @@
+@use '@/styles/variables.scss' as *;
+
+.container {
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-md;
+}
+
+.title {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.progressText {
+  font-size: $font-size-sm;
+  color: $color-primary;
+  font-weight: $font-weight-medium;
+}
+
+.progressBar {
+  height: 8rpx;
+  background-color: $color-border;
+  border-radius: $radius-round;
+  overflow: hidden;
+  margin-bottom: $spacing-xl;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-round;
+  transition: width $transition-base;
+}
+
+.stages {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.stageItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-sm;
+  flex: 1;
+  position: relative;
+  transition: all $transition-fast;
+
+  &.clickable {
+    cursor: pointer;
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  &.current {
+    .stageLabel {
+      font-weight: $font-weight-semibold;
+    }
+  }
+}
+
+.stageCircle {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  border: 4rpx solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+
+  &.completed {
+    border-color: $color-success !important;
+  }
+}
+
+.checkIcon {
+  color: $color-text-white;
+  font-size: 28rpx;
+  font-weight: $font-weight-bold;
+}
+
+.stageLabel {
+  font-size: $font-size-xs;
+  text-align: center;
+  transition: all $transition-base;
+}
+
+.currentIndicator {
+  position: absolute;
+  bottom: -16rpx;
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background-color: $color-primary;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+.connector {
+  flex: 0.5;
+  height: 4rpx;
+  background-color: $color-border;
+  margin-top: 30rpx;
+  border-radius: $radius-round;
+  overflow: hidden;
+}
+
+.connectorFill {
+  height: 100%;
+  transition: width $transition-base;
+}

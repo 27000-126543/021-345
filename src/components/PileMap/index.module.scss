@@ -1,0 +1,180 @@
+@use '@/styles/variables.scss' as *;
+
+.container {
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  margin-bottom: $spacing-md;
+}
+
+.legend {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: $spacing-lg;
+  padding: $spacing-md;
+  background-color: $color-bg-page;
+  border-radius: $radius-md;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.legendDot {
+  width: 20rpx;
+  height: 20rpx;
+  border-radius: 50%;
+}
+
+.legendText {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+}
+
+.mapScroll {
+  max-height: 800rpx;
+  border: 2rpx solid $color-border;
+  border-radius: $radius-md;
+  background-color: $color-bg-page;
+}
+
+.mapContainer {
+  padding: $spacing-md;
+  min-width: 100%;
+}
+
+.areaSection {
+  margin-bottom: $spacing-xl;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.areaTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+  padding-left: $spacing-sm;
+  border-left: 6rpx solid $color-primary;
+}
+
+.areaGrid {
+  overflow: auto;
+}
+
+.gridRow {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  margin-bottom: $spacing-xs;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.rowLabel {
+  width: 60rpx;
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.gridCell {
+  width: 100rpx;
+  height: 100rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emptyCell {
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.03);
+  border-radius: $radius-sm;
+  border: 2rpx dashed $color-border;
+}
+
+.pilePoint {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  border: 4rpx solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all $transition-fast;
+
+  &:active {
+    transform: scale(0.9);
+  }
+
+  &.selected {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 8rpx rgba(30, 136, 229, 0.2);
+  }
+}
+
+.pileNo {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+}
+
+.pulseRing {
+  position: absolute;
+  top: -8rpx;
+  left: -8rpx;
+  right: -8rpx;
+  bottom: -8rpx;
+  border: 4rpx solid;
+  border-radius: 50%;
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.colLabels {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  margin-top: $spacing-sm;
+}
+
+.colLabel {
+  width: 100rpx;
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.tip {
+  margin-top: $spacing-md;
+  padding: $spacing-md;
+  background-color: rgba(30, 136, 229, 0.05);
+  border-radius: $radius-md;
+  text-align: center;
+}
+
+.tipText {
+  font-size: $font-size-sm;
+  color: $color-primary;
+}
