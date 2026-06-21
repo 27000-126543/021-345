@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, ScrollView, Picker } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import classnames from 'classnames'
 import { usePileStore } from '@/store/usePileStore'
-import { PileRecord, DRILL_LIST, OPERATOR_LIST, FIELD_LABELS, CONSTRUCTION_STAGES } from '@/types/pile'
+import { PileRecord, FIELD_LABELS, CONSTRUCTION_STAGES } from '@/types/pile'
 import styles from './index.module.scss'
 
 const QCWorkbenchPage: React.FC = () => {
   const getPendingQualityChecks = usePileStore(state => state.getPendingQualityChecks)
+  const getFilterOptions = usePileStore(state => state.getFilterOptions)
   const qualityCheck = usePileStore(state => state.qualityCheck)
   const loadRecords = usePileStore(state => state.loadRecords)
   const loadPiles = usePileStore(state => state.loadPiles)
@@ -24,6 +25,12 @@ const QCWorkbenchPage: React.FC = () => {
     loadRecords()
     loadPiles()
   }, [])
+
+  useDidShow(() => {
+    console.log('[QCWorkbench] useDidShow 刷新数据')
+    loadRecords()
+    loadPiles()
+  })
 
   const pendingList = getPendingQualityChecks({
     drillNo: filterDrill === 'all' ? undefined : filterDrill,
@@ -88,8 +95,15 @@ const QCWorkbenchPage: React.FC = () => {
   const hasException = pendingList.filter(r => r.validation.exceptions.some(e => e.type === 'error')).length
   const hasWarning = pendingList.filter(r => r.validation.exceptions.some(e => e.type === 'warning')).length
 
-  const drillOptions = [{ label: '全部钻机', value: 'all' }, ...DRILL_LIST.map(d => ({ label: d, value: d }))]
-  const operatorOptions = [{ label: '全部人员', value: 'all' }, ...OPERATOR_LIST.map(o => ({ label: o, value: o }))]
+  const filterOptions = getFilterOptions()
+  const drillOptions = [
+    { label: '全部钻机', value: 'all' }, 
+    ...filterOptions.drills.map(d => ({ label: d, value: d }))
+  ]
+  const operatorOptions = [
+    { label: '全部人员', value: 'all' }, 
+    ...filterOptions.operators.map(o => ({ label: o, value: o }))
+  ]
   const exceptionOptions = [
     { label: '全部', value: 'all' },
     { label: '有异常', value: 'error' },

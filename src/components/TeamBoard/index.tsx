@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, Text, ScrollView, Picker } from '@tarojs/components'
+import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import classnames from 'classnames'
 import { PileInfo, DRILL_LIST, OPERATOR_LIST } from '@/types/pile'
@@ -36,8 +36,6 @@ const stageColors: Record<string, string> = {
 
 const TeamBoard: React.FC<TeamBoardProps> = ({ byDrill, byOperator, byStage, onPileClick, onAdjustAssignment }) => {
   const [groupBy, setGroupBy] = useState<GroupByMode>('drill')
-  const [adjustPile, setAdjustPile] = useState<PileInfo | null>(null)
-  const [adjustField, setAdjustField] = useState<'drillNo' | 'operator'>('drillNo')
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -48,52 +46,53 @@ const TeamBoard: React.FC<TeamBoardProps> = ({ byDrill, byOperator, byStage, onP
     }
   }
 
-  const handleLongPressChip = (pile: PileInfo, field: 'drillNo' | 'operator') => {
+  const handleAdjustClick = async (pile: PileInfo, field: 'drillNo' | 'operator') => {
     if (!onAdjustAssignment) return
     if (pile.status === 'completed') {
       Taro.showToast({ title: '已完成的桩位不可调整', icon: 'none' })
         .catch(err => console.error('[TeamBoard] Toast失败:', err))
       return
     }
-    setAdjustPile(pile)
-    setAdjustField(field)
-    setTimeout(() => {
-      const options = field === 'drillNo' ? DRILL_LIST : OPERATOR_LIST
-      const currentVal = String((pile as any)[field] || '')
-      const currentIdx = options.indexOf(currentVal)
-      const newVal = options[currentIdx >= 0 ? currentIdx : 0]
-      confirmAdjust(pile, field, newVal)
-    }, 50)
-  }
 
-  const confirmAdjust = async (pile: PileInfo, field: 'drillNo' | 'operator', pickerValue: string) => {
+    const options = field === 'drillNo' ? DRILL_LIST : OPERATOR_LIST
     const currentVal = String((pile as any)[field] || '')
-    if (pickerValue === currentVal) {
-      setAdjustPile(null)
-      return
-    }
     const fieldLabel = field === 'drillNo' ? '钻机' : '施工员'
-    const modalOpts: any = {
-      title: `调整${fieldLabel}`,
-      content: `将 ${pile.pileNo} 的${fieldLabel}从「${currentVal || '未分配'}」调整为「${pickerValue}」`,
-      editable: true,
-      placeholderText: '选填：调整原因（如临时换班）',
-      confirmText: '确认调整',
-      cancelText: '取消',
-      confirmColor: '#1E88E5'
+
+    try {
+      const actionSheetOpts: any = {
+        itemList: options,
+        title: `选择目标${fieldLabel}`
+      }
+      const res = await Taro.showActionSheet(actionSheetOpts)
+      const selectedValue = options[res.tapIndex]
+      
+      if (selectedValue === currentVal) {
+        Taro.showToast({ title: `目标${fieldLabel}与当前相同`, icon: 'none' })
+          .catch(err => console.error('[TeamBoard] Toast失败:', err))
+        return
+      }
+
+      const modalOpts: any = {
+        title: `确认调整${fieldLabel}`,
+        content: `将 ${pile.pileNo} 的${fieldLabel}从「${currentVal || '未分配'}」调整为「${selectedValue}」`,
+        editable: true,
+        placeholderText: '选填：调整原因（如临时换班）',
+        confirmText: '确认调整',
+        cancelText: '取消',
+        confirmColor: '#1E88E5'
+      }
+      const modalRes: any = await Taro.showModal(modalOpts).catch(err => {
+        console.error('[TeamBoard] Modal失败:', err)
+        return { confirm: false, content: '' }
+      })
+      if (!modalRes.confirm) return
+
+      onAdjustAssignment!(pile.id, field, selectedValue, modalRes.content || undefined)
+      Taro.showToast({ title: '调整成功', icon: 'success' })
+        .catch(err => console.error('[TeamBoard] Toast失败:', err))
+    } catch (err) {
+      console.log('[TeamBoard] 用户取消选择')
     }
-    const res: any = await Taro.showModal(modalOpts).catch(err => {
-      console.error('[TeamBoard] Modal失败:', err)
-      return { confirm: false, content: '' }
-    })
-    if (!res.confirm) {
-      setAdjustPile(null)
-      return
-    }
-    onAdjustAssignment!(pile.id, field, pickerValue, res.content || undefined)
-    setAdjustPile(null)
-    Taro.showToast({ title: '调整成功', icon: 'success' })
-      .catch(err => console.error('[TeamBoard] Toast失败:', err))
   }
 
   const renderPileChip = (pile: PileInfo, field: 'drillNo' | 'operator' | null) => (
@@ -115,7 +114,7 @@ const TeamBoard: React.FC<TeamBoardProps> = ({ byDrill, byOperator, byStage, onP
           className={styles.adjustBtn}
           onClick={(e) => {
             e.stopPropagation?.()
-            handleLongPressChip(pile, field)
+            handleAdjustClick(pile, field)
           }}
         >
           <Text className={styles.adjustIcon}>↔</Text>
@@ -239,20 +238,6 @@ const TeamBoard: React.FC<TeamBoardProps> = ({ byDrill, byOperator, byStage, onP
           💡 点击桩号进入成孔记录 · 点击↔可临时调整钻机/施工员（班前分活用）
         </Text>
       </View>
-
-      {adjustPile && (
-        <Picker
-          mode='selector'
-          range={adjustField === 'drillNo' ? DRILL_LIST : OPERATOR_LIST}
-          onChange={(e) => {
-            const val = (adjustField === 'drillNo' ? DRILL_LIST : OPERATOR_LIST)[e.detail.value]
-            confirmAdjust(adjustPile, adjustField, val)
-          }}
-          onCancel={() => setAdjustPile(null)}
-        >
-          <View className={styles.hiddenPicker} />
-        </Picker>
-      )}
     </View>
   )
 }

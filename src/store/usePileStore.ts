@@ -28,6 +28,39 @@ interface QualityFilter {
   exceptionType?: string
 }
 
+interface DailyReportQC {
+  checked: boolean
+  checkedBy: string
+  checkedTime: string
+}
+
+interface DailyReportPile {
+  pileNo: string
+  status: string
+  statusText: string
+  drillNo: string
+  operator: string
+  actualDepth: string | number | undefined
+  concreteVolume: string | number | undefined
+  completedStages: string[]
+  exceptions: string[]
+  qualityCheck: DailyReportQC
+}
+
+interface DailyReport {
+  date: string
+  totalPiles: number
+  checkedCount: number
+  pendingCheckCount: number
+  exceptionCount: number
+  pendingItems: string[]
+  pileReports: DailyReportPile[]
+  signed: boolean
+  signedBy: string
+  signTime: string
+  rawLog: DailyLog | null
+}
+
 interface PileStore {
   piles: PileInfo[]
   records: PileRecord[]
@@ -57,7 +90,8 @@ interface PileStore {
   qualityCheck: (recordId: string, pass: boolean, comments?: string, inspector?: string) => boolean
   getTeamBoardData: () => TeamBoardData
   getPendingQualityChecks: (filter?: QualityFilter) => PileRecord[]
-  exportDailyReport: (date?: string) => DailyLog | null
+  getFilterOptions: () => { drills: string[]; operators: string[] }
+  exportDailyReport: (date?: string) => DailyReport
   adjustPileAssignment: (pileId: string, field: 'drillNo' | 'operator', newValue: string, reason?: string, adjustBy?: string) => boolean
   refreshCurrentRecordState: () => void
 }
@@ -442,16 +476,25 @@ export const usePileStore = create<PileStore>((set, get) => ({
 
       const { currentRecord: currentRec, selectedPile } = get()
       let newCurrentRecord = currentRec
+      let newSelectedPile = selectedPile
+
       if (currentRec?.id === recordId) {
         newCurrentRecord = updatedRecord
-      } else if (selectedPile) {
-        const reloaded = get().loadExistingRecord(selectedPile.id)
-        if (!reloaded) {
-          newCurrentRecord = currentRec
+      }
+
+      if (selectedPile?.id === record.pileId) {
+        const freshPile = piles.find(p => p.id === record.pileId)
+        if (freshPile) {
+          newSelectedPile = freshPile
         }
       }
 
-      set({ records: allRecords, piles, currentRecord: newCurrentRecord })
+      set({ 
+        records: allRecords, 
+        piles, 
+        currentRecord: newCurrentRecord,
+        selectedPile: newSelectedPile
+      })
 
       console.log('[Store] 质检完成:', record.pileNo, pass ? '通过✅' : '驳回↩️', '桩位状态:', newPileStatus)
       return true
@@ -472,7 +515,7 @@ export const usePileStore = create<PileStore>((set, get) => ({
     }
   },
 
-  getPendingQualityChecks: (filter) => {
+  getPendingQualityChecks: (filter?: QualityFilter) => {
     let list = getPileRecords().filter(r => r.status === 'pending_check')
     if (filter?.drillNo) {
       list = list.filter(r => r.drillNo === filter.drillNo)
@@ -481,9 +524,23 @@ export const usePileStore = create<PileStore>((set, get) => ({
       list = list.filter(r => r.operator === filter.operator)
     }
     if (filter?.exceptionType) {
-      list = list.filter(r => r.validation.exceptions.some(ex => ex.type === filter.exceptionType || ex.message.includes(filter.exceptionType!)))
+      list = list.filter(r => r.validation.exceptions.some(ex => ex.type === filter.exceptionType))
     }
     return list
+  },
+
+  getFilterOptions: () => {
+    const pendingRecords = getPileRecords().filter(r => r.status === 'pending_check')
+    const drills = new Set<string>()
+    const operators = new Set<string>()
+    pendingRecords.forEach(r => {
+      if (r.drillNo) drills.add(r.drillNo)
+      if (r.operator) operators.add(r.operator)
+    })
+    return {
+      drills: Array.from(drills).sort(),
+      operators: Array.from(operators).sort()
+    }
   },
 
   getTodayRecords: () => {
@@ -721,15 +778,117 @@ export const usePileStore = create<PileStore>((set, get) => ({
 
   exportDailyReport: (date?: string) => {
     const targetDate = date || dayjs().format('YYYY-MM-DD')
-    const logs = getDailyLogs()
-    const existingLog = logs.find(l => l.date === targetDate)
+    const allDayRecords = getPileRecordsByDate(targetDate)
     
-    if (existingLog) {
-      console.log('[Store] 导出日报(已有日志):', targetDate)
-      return existingLog
+    const validRecords = allDayRecords.filter(r => r.status === 'checked' || r.status === 'signed')
+    const pendingCheckRecords = allDayRecords.filter(r => r.status === 'pending_check')
+    const draftRecords = allDayRecords.filter(r => r.status === 'draft')
+    
+    const checkedCount = validRecords.length
+    const pendingCheckCount = pendingCheckRecords.length
+    const exceptionCount = validRecords.filter(r => r.validation.overallStatus === 'error').length
+    const totalPiles = allDayRecords.length
+
+    const pendingItems: string[] = []
+    
+    pendingCheckRecords.forEach(r => {
+      pendingItems.push(`⏳ ${r.pileNo}: 待质检复核`)
+    })
+    draftRecords.forEach(r => {
+      pendingItems.push(`📝 ${r.pileNo}: 草稿未提交`)
+    })
+    validRecords.forEach(r => {
+      if (r.validation.missingFields.length > 0) {
+        r.validation.missingFields.forEach(f => {
+          const fieldLabel = FIELD_LABELS[f] || f
+          pendingItems.push(`${r.pileNo}: ${fieldLabel}未填写`)
+        })
+      }
+      r.validation.exceptions.filter(e => e.type === 'error').forEach(e => {
+        if (!r.exceptionReason) {
+          const fieldLabel = FIELD_LABELS[e.field] || e.field
+          pendingItems.push(`${r.pileNo}: ${fieldLabel}异常 - ${e.message}，待说明原因`)
+        }
+      })
+      if (r.stages) {
+        const pendingStages = r.stages.filter(s => !s.completed).map(s => {
+          const labels: Record<string, string> = { drill_start: '开钻', drill_end: '终孔', cage: '下笼', concrete: '灌注' }
+          return labels[s.stage] || s.stage
+        })
+        if (pendingStages.length > 0 && pendingStages.length < 4) {
+          pendingItems.push(`${r.pileNo}: 施工阶段未完成（${pendingStages.join('、')}）`)
+        }
+      }
+    })
+
+    const getStatusText = (status: string) => {
+      switch (status) {
+        case 'checked': return '✅ 质检通过'
+        case 'signed': return '📋 已签入'
+        case 'pending_check': return '⏳ 待复核'
+        case 'draft': return '📝 草稿'
+        default: return status
+      }
     }
 
-    return get().generateDailyLog(targetDate)
+    const pileReports = validRecords.map(r => {
+      const completedStages: string[] = []
+      if (r.stages) {
+        r.stages.forEach(s => {
+          if (s.completed) {
+            const labels: Record<string, string> = { drill_start: '开钻', drill_end: '终孔', cage: '下笼', concrete: '灌注' }
+            completedStages.push(labels[s.stage] || s.stage)
+          }
+        })
+      }
+      const exceptions = r.validation.exceptions.map(e => {
+        const fieldLabel = FIELD_LABELS[e.field] || e.field
+        return `${fieldLabel}：${e.message}`
+      })
+      const qcChecked = r.qualityCheck?.checked || false
+      const qcBy = r.qualityCheck?.checkedBy || ''
+      const qcTime = r.qualityCheck?.checkedTime || ''
+
+      return {
+        pileNo: r.pileNo || '-',
+        status: r.status || 'draft',
+        statusText: getStatusText(r.status),
+        drillNo: r.drillNo || '-',
+        operator: r.operator || '-',
+        actualDepth: r.actualDepth || '-',
+        concreteVolume: r.concreteVolume || '-',
+        completedStages,
+        exceptions,
+        qualityCheck: {
+          checked: qcChecked,
+          checkedBy: qcBy,
+          checkedTime: qcTime
+        }
+      }
+    })
+
+    const logs = getDailyLogs()
+    const existingLog = logs.find(l => l.date === targetDate)
+    const signed = !!(existingLog?.isLocked || existingLog?.signedBy)
+    const signedBy = existingLog?.signedBy || ''
+    const signTime = existingLog?.signTime || ''
+
+    const report = {
+      date: dayjs(targetDate).format('YYYY年MM月DD日'),
+      totalPiles,
+      checkedCount,
+      pendingCheckCount,
+      exceptionCount,
+      pendingItems,
+      pileReports,
+      signed,
+      signedBy,
+      signTime,
+      rawLog: existingLog || null
+    }
+
+    console.log('[Store] 导出日报预览:', targetDate, '质检通过:', checkedCount, '待复核:', pendingCheckCount)
+    return report
   },
 
   signDailyLog: (logId, signName) => {

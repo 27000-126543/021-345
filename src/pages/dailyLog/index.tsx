@@ -555,7 +555,7 @@ const DailyLogPage: React.FC = () => {
                 </View>
               </View>
 
-              {dailyReport.pendingItems.length > 0 && (
+              {dailyReport.pendingItems?.length > 0 && (
                 <View className={styles.previewSection}>
                   <Text className={styles.previewSectionTitle}>⚠️ 待补项（{dailyReport.pendingItems.length}）</Text>
                   {dailyReport.pendingItems.map((item: string, idx: number) => (
@@ -568,7 +568,13 @@ const DailyLogPage: React.FC = () => {
 
               <View className={styles.previewSection}>
                 <Text className={styles.previewSectionTitle}>📋 桩位明细</Text>
-                {dailyReport.pileReports.map((pile: any, idx: number) => (
+                {(dailyReport.pileReports?.length || 0) === 0 ? (
+                  <View className={styles.previewEmptyPile}>
+                    <Text className={styles.previewEmptyText}>该日期暂无质检通过的桩位记录</Text>
+                    <Text className={styles.previewEmptySub}>通过质检的记录会自动出现在这里</Text>
+                  </View>
+                ) : (
+                  dailyReport.pileReports!.map((pile: any, idx: number) => (
                   <View key={idx} className={styles.previewPileCard}>
                     <View className={styles.previewPileHeader}>
                       <Text className={styles.previewPileNo}>{pile.pileNo}</Text>
@@ -614,10 +620,11 @@ const DailyLogPage: React.FC = () => {
                       </View>
                     )}
                   </View>
-                ))}
+                  ))
+                )}
               </View>
 
-              {dailyReport.signed && (
+              {dailyReport.signed && dailyReport.signedBy && (
                 <View className={styles.previewSection}>
                   <Text className={styles.previewSectionTitle}>✍️ 签字确认</Text>
                   <View className={styles.previewSignInfo}>

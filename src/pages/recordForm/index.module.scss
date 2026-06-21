@@ -48,6 +48,25 @@
   display: inline-block;
 }
 
+.qcTag {
+  font-size: $font-size-xs;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-xs;
+  display: inline-block;
+  margin-left: $spacing-sm;
+  font-weight: $font-weight-medium;
+
+  &.checked {
+    background: rgba(67, 160, 71, 0.2);
+    color: #43A047;
+  }
+
+  &.pending {
+    background: rgba(251, 140, 0, 0.2);
+    color: #FB8C00;
+  }
+}
+
 .pileDesign {
   display: flex;
   gap: $spacing-xl;

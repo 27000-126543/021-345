@@ -297,6 +297,16 @@ const RecordFormPage: React.FC = () => {
                 📝 已有记录，继续编辑中
               </Text>
             )}
+            {isChecked && (
+              <Text className={classnames(styles.qcTag, styles.checked)}>
+                ✅ 质检通过
+              </Text>
+            )}
+            {isPendingCheck && (
+              <Text className={classnames(styles.qcTag, styles.pending)}>
+                ⏳ 待复核
+              </Text>
+            )}
           </View>
           <StatusTag status={selectedPile.status} />
         </View>
