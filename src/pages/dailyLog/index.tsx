@@ -15,6 +15,8 @@ const DailyLogPage: React.FC = () => {
   const [pendingLogId, setPendingLogId] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
+  const [dailyReport, setDailyReport] = useState<any>(null)
 
   const todayRecords = usePileStore(state => state.getTodayRecords())
   const dailyLogs = usePileStore(state => state.dailyLogs)
@@ -22,6 +24,7 @@ const DailyLogPage: React.FC = () => {
   const generateDailyLog = usePileStore(state => state.generateDailyLog)
   const signDailyLog = usePileStore(state => state.signDailyLog)
   const loadRecords = usePileStore(state => state.loadRecords)
+  const exportDailyReport = usePileStore(state => state.exportDailyReport)
 
   useEffect(() => {
     loadRecords()
@@ -124,6 +127,22 @@ const DailyLogPage: React.FC = () => {
 
   const toggleLogExpand = (logId: string) => {
     setExpandedLogId(expandedLogId === logId ? null : logId)
+  }
+
+  const handlePreviewReport = () => {
+    const report = exportDailyReport(selectedDate)
+    if (!report) {
+      Taro.showToast({ title: '该日期暂无数据', icon: 'none' })
+        .catch(err => console.error('[DailyLogPage] Toast失败:', err))
+      return
+    }
+    setDailyReport(report)
+    setShowPreview(true)
+  }
+
+  const handleShareReport = () => {
+    Taro.showToast({ title: '已生成日报截图（演示）', icon: 'success' })
+      .catch(err => console.error('[DailyLogPage] Toast失败:', err))
   }
 
   const dateRange = {
@@ -440,6 +459,12 @@ const DailyLogPage: React.FC = () => {
 
       <View className={styles.bottomBar}>
         <Button
+          className={styles.previewBtn}
+          onClick={handlePreviewReport}
+        >
+          📄 日报预览
+        </Button>
+        <Button
           className={classnames(styles.generateBtn, { [styles.disabled]: isGenerating || filteredRecords.length === 0 })}
           onClick={handleGenerateLog}
           disabled={isGenerating || filteredRecords.length === 0 || (todayLog?.isLocked || false)}
@@ -488,6 +513,125 @@ const DailyLogPage: React.FC = () => {
                 onClick={handleConfirmSign}
               >
                 确认签字
+              </Button>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {showPreview && dailyReport && (
+        <View className={styles.previewModal} onClick={() => setShowPreview(false)}>
+          <View className={styles.previewContent} onClick={(e) => e.stopPropagation()}>
+            <View className={styles.previewHeader}>
+              <Text className={styles.previewTitle}>桩基施工日报</Text>
+              <Text className={styles.previewDate}>{dailyReport.date}</Text>
+            </View>
+
+            <ScrollView className={styles.previewScroll} scrollY>
+              <View className={styles.previewStatsRow}>
+                <View className={styles.previewStat}>
+                  <Text className={styles.previewStatValue}>{dailyReport.totalPiles}</Text>
+                  <Text className={styles.previewStatLabel}>总桩位</Text>
+                </View>
+                <View className={styles.previewStat}>
+                  <Text className={styles.previewStatValue}>{dailyReport.checkedCount}</Text>
+                  <Text className={styles.previewStatLabel}>质检通过</Text>
+                </View>
+                <View className={styles.previewStat}>
+                  <Text className={styles.previewStatValue}>{dailyReport.pendingCheckCount}</Text>
+                  <Text className={styles.previewStatLabel}>待质检</Text>
+                </View>
+                <View className={styles.previewStat}>
+                  <Text className={styles.previewStatValue}>{dailyReport.exceptionCount}</Text>
+                  <Text className={styles.previewStatLabel}>异常</Text>
+                </View>
+              </View>
+
+              {dailyReport.pendingItems.length > 0 && (
+                <View className={styles.previewSection}>
+                  <Text className={styles.previewSectionTitle}>⚠️ 待补项（{dailyReport.pendingItems.length}）</Text>
+                  {dailyReport.pendingItems.map((item: string, idx: number) => (
+                    <Text key={idx} className={styles.previewPendingItem}>
+                      · {item}
+                    </Text>
+                  ))}
+                </View>
+              )}
+
+              <View className={styles.previewSection}>
+                <Text className={styles.previewSectionTitle}>📋 桩位明细</Text>
+                {dailyReport.pileReports.map((pile: any, idx: number) => (
+                  <View key={idx} className={styles.previewPileCard}>
+                    <View className={styles.previewPileHeader}>
+                      <Text className={styles.previewPileNo}>{pile.pileNo}</Text>
+                      <View className={classnames(styles.previewPileStatus, styles[pile.status])}>
+                        {pile.statusText}
+                      </View>
+                    </View>
+                    <View className={styles.previewPileInfo}>
+                      <View className={styles.previewPileInfoItem}>
+                        <Text>钻机：{pile.drillNo || '-'}</Text>
+                      </View>
+                      <View className={styles.previewPileInfoItem}>
+                        <Text>施工员：{pile.operator || '-'}</Text>
+                      </View>
+                      <View className={styles.previewPileInfoItem}>
+                        <Text>孔深：{pile.actualDepth || '-'}m</Text>
+                      </View>
+                      <View className={styles.previewPileInfoItem}>
+                        <Text>灌注：{pile.concreteVolume || '-'}m³</Text>
+                      </View>
+                    </View>
+                    <View className={styles.previewPileStages}>
+                      {pile.completedStages.map((s: string, i: number) => (
+                        <Text key={i} className={styles.previewStageTag}>
+                          {s}
+                        </Text>
+                      ))}
+                    </View>
+                    {pile.exceptions.length > 0 && (
+                      <View className={styles.previewPileExceptions}>
+                        {pile.exceptions.map((ex: string, i: number) => (
+                          <Text key={i} className={styles.previewException}>⚠ {ex}</Text>
+                        ))}
+                      </View>
+                    )}
+                    {pile.qualityCheck && (
+                      <View className={styles.previewQC}>
+                        <Text className={styles.previewQCText}>
+                          {pile.qualityCheck.checked 
+                            ? `✅ ${pile.qualityCheck.checkedBy} · ${pile.qualityCheck.checkedTime?.split(' ')[0] || ''}` 
+                            : '⏳ 待质检复核'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+
+              {dailyReport.signed && (
+                <View className={styles.previewSection}>
+                  <Text className={styles.previewSectionTitle}>✍️ 签字确认</Text>
+                  <View className={styles.previewSignInfo}>
+                    <Text>技术负责人：{dailyReport.signedBy}</Text>
+                    <Text>签字时间：{dailyReport.signTime}</Text>
+                  </View>
+                </View>
+              )}
+
+              <View className={styles.previewFooter}>
+                <Text className={styles.previewFooterText}>
+                  本日报由桩基施工记录App自动生成 · {dayjs().format('YYYY-MM-DD HH:mm')}
+                </Text>
+              </View>
+            </ScrollView>
+
+            <View className={styles.previewActions}>
+              <Button className={styles.previewCancelBtn} onClick={() => setShowPreview(false)}>
+                关闭
+              </Button>
+              <Button className={styles.previewShareBtn} onClick={handleShareReport}>
+                📤 导出分享
               </Button>
             </View>
           </View>

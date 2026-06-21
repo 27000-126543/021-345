@@ -17,6 +17,25 @@ export interface PileInfo {
   gridY?: number
   lng?: number
   lat?: number
+  drillNo?: string
+  operator?: string
+}
+
+export interface RecordChangeLog {
+  field: string
+  oldValue: any
+  newValue: any
+  operator: string
+  changeTime: string
+  reason?: string
+}
+
+export interface QualityCheck {
+  checked: boolean
+  checkedBy?: string
+  checkedTime?: string
+  result?: 'pass' | 'reject'
+  comments?: string
 }
 
 export interface PileRecord {
@@ -34,12 +53,15 @@ export interface PileRecord {
   concreteVolume: number
   designConcreteVolume: number
   exceptionReason: string
-  status: 'draft' | 'submitted' | 'signed'
+  status: 'draft' | 'pending_check' | 'checked' | 'signed'
   stages: StageStatus[]
   currentStage: ConstructionStage
   createTime: string
   updateTime: string
   validation: RecordValidation
+  operator?: string
+  qualityCheck: QualityCheck
+  changeLogs: RecordChangeLog[]
 }
 
 export interface RecordValidation {

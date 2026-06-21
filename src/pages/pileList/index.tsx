@@ -7,10 +7,11 @@ import { usePileStore } from '@/store/usePileStore'
 import { initMockData } from '@/data/mockPiles'
 import PileCard from '@/components/PileCard'
 import PileMap from '@/components/PileMap'
+import TeamBoard from '@/components/TeamBoard'
 import { PileInfo } from '@/types/pile'
 import styles from './index.module.scss'
 
-type ViewMode = 'list' | 'map'
+type ViewMode = 'list' | 'map' | 'board'
 
 const PileListPage: React.FC = () => {
   const [selectedArea, setSelectedArea] = useState<string>('all')
@@ -23,6 +24,7 @@ const PileListPage: React.FC = () => {
   const getStats = usePileStore(state => state.getStats)
   const selectPile = usePileStore(state => state.selectPile)
   const getRecordByPileId = usePileStore(state => state.getRecordByPileId)
+  const getTeamBoardData = usePileStore(state => state.getTeamBoardData)
 
   useEffect(() => {
     initMockData()
@@ -30,6 +32,7 @@ const PileListPage: React.FC = () => {
   }, [])
 
   const stats = getStats()
+  const teamBoardData = getTeamBoardData()
 
   const areas = Array.from(new Set(piles.map(p => p.area)))
   const areaOptions = [{ label: '全部区域', value: 'all' }, ...areas.map(a => ({ label: a, value: a }))]
@@ -44,7 +47,8 @@ const PileListPage: React.FC = () => {
 
   const viewModeOptions = [
     { label: '列表', value: 'list' as ViewMode, icon: '📋' },
-    { label: '平面图', value: 'map' as ViewMode, icon: '🗺️' }
+    { label: '平面图', value: 'map' as ViewMode, icon: '🗺️' },
+    { label: '班组看板', value: 'board' as ViewMode, icon: '📊' }
   ]
 
   const filteredPiles = piles.filter(pile => {
@@ -214,6 +218,17 @@ const PileListPage: React.FC = () => {
             {isRefreshing && (
               <Text className={styles.loadingText}>刷新中...</Text>
             )}
+          </View>
+        )}
+
+        {viewMode === 'board' && (
+          <View className={styles.boardContainer}>
+            <TeamBoard
+              byDrill={teamBoardData.byDrill}
+              byOperator={teamBoardData.byOperator}
+              byStage={teamBoardData.byStage}
+              onPileClick={handlePileClick}
+            />
           </View>
         )}
       </View>

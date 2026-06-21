@@ -20,14 +20,16 @@ const RecordFormPage: React.FC = () => {
   const saveStage = usePileStore(state => state.saveStage)
   const selectPile = usePileStore(state => state.selectPile)
   const getRecordByPileId = usePileStore(state => state.getRecordByPileId)
+  const submitForQualityCheck = usePileStore(state => state.submitForQualityCheck)
+  const qualityCheck = usePileStore(state => state.qualityCheck)
 
   const [isSaving, setIsSaving] = useState(false)
   const [isSavingStage, setIsSavingStage] = useState<string | null>(null)
   const [activeStage, setActiveStage] = useState<ConstructionStage>('drill_start')
   const [isExistingRecord, setIsExistingRecord] = useState(false)
+  const [showChangeLogs, setShowChangeLogs] = useState(false)
 
   useEffect(() => {
-    console.log('[RecordFormPage] 当前选中桩位:', selectedPile)
     if (selectedPile) {
       const existing = getRecordByPileId(selectedPile.id)
       setIsExistingRecord(!!existing)
@@ -38,6 +40,11 @@ const RecordFormPage: React.FC = () => {
   }, [selectedPile, currentRecord?.currentStage])
 
   const handleFieldChange = (field: keyof PileRecord, value: any) => {
+    if (currentRecord?.status === 'checked') {
+      Taro.showToast({ title: '质检通过的记录不可修改', icon: 'none' })
+        .catch(err => console.error('[RecordFormPage] Toast失败:', err))
+      return
+    }
     updateRecordField(field, value)
   }
 
@@ -47,6 +54,11 @@ const RecordFormPage: React.FC = () => {
 
   const handleSaveStage = async (stage: ConstructionStage) => {
     if (isSavingStage || !currentRecord) return
+    if (currentRecord.status === 'checked') {
+      Taro.showToast({ title: '质检通过的记录不可修改', icon: 'none' })
+        .catch(err => console.error('[RecordFormPage] Toast失败:', err))
+      return
+    }
 
     const complete = isStageComplete(stage, currentRecord)
     if (!complete) {
@@ -74,7 +86,6 @@ const RecordFormPage: React.FC = () => {
           .catch(err => console.error('[RecordFormPage] Toast失败:', err))
       }
     } catch (error) {
-      console.error('[RecordFormPage] 阶段保存异常:', error)
       Taro.showToast({ title: '保存失败', icon: 'error' })
         .catch(err => console.error('[RecordFormPage] Toast失败:', err))
     } finally {
@@ -84,9 +95,13 @@ const RecordFormPage: React.FC = () => {
 
   const handleSaveFull = async () => {
     if (isSaving) return
-    
     if (!currentRecord) {
       Taro.showToast({ title: '请先选择桩位', icon: 'none' })
+        .catch(err => console.error('[RecordFormPage] Toast失败:', err))
+      return
+    }
+    if (currentRecord.status === 'checked') {
+      Taro.showToast({ title: '质检通过的记录不可修改', icon: 'none' })
         .catch(err => console.error('[RecordFormPage] Toast失败:', err))
       return
     }
@@ -123,17 +138,75 @@ const RecordFormPage: React.FC = () => {
       if (success) {
         Taro.showToast({ title: '保存成功', icon: 'success' })
           .catch(err => console.error('[RecordFormPage] Toast失败:', err))
-        selectPile(null)
       } else {
         Taro.showToast({ title: '保存失败', icon: 'error' })
           .catch(err => console.error('[RecordFormPage] Toast失败:', err))
       }
     } catch (error) {
-      console.error('[RecordFormPage] 保存异常:', error)
       Taro.showToast({ title: '保存失败', icon: 'error' })
         .catch(err => console.error('[RecordFormPage] Toast失败:', err))
     } finally {
       setTimeout(() => setIsSaving(false), 1000)
+    }
+  }
+
+  const handleSubmitForCheck = async () => {
+    if (!currentRecord) return
+    if (currentValidation?.overallStatus === 'pending') {
+      const confirm = await Taro.showModal({
+        title: '提交复核',
+        content: `还有${currentValidation.missingFields.length}项必填项未填写，确定提交质检复核吗？`,
+        confirmText: '继续提交',
+        cancelText: '返回填写'
+      }).catch(err => {
+        console.error('[RecordFormPage] Modal失败:', err)
+        return { confirm: false }
+      })
+      if (!confirm.confirm) return
+    }
+
+    const success = submitForQualityCheck()
+    if (success) {
+      Taro.showToast({ title: '已提交质检复核', icon: 'success' })
+        .catch(err => console.error('[RecordFormPage] Toast失败:', err))
+    } else {
+      Taro.showToast({ title: '提交失败', icon: 'error' })
+        .catch(err => console.error('[RecordFormPage] Toast失败:', err))
+    }
+  }
+
+  const handleQualityCheck = async (pass: boolean) => {
+    if (!currentRecord) return
+    const modalOptions: any = {
+      title: pass ? '复核通过' : '复核驳回',
+      content: pass ? '确认该记录质检通过？' : '请填写驳回原因',
+      editable: !pass,
+      placeholderText: pass ? '' : '请填写驳回原因...',
+      confirmText: pass ? '通过' : '驳回',
+      cancelText: '取消',
+      confirmColor: pass ? undefined : '#E53935'
+    }
+    const comments = await Taro.showModal(modalOptions).catch(err => {
+      console.error('[RecordFormPage] Modal失败:', err)
+      return { confirm: false, content: '' } as any
+    })
+
+    if (!comments.confirm) return
+    const contentVal = String((comments as any).content || '')
+    if (!pass && !contentVal) {
+      Taro.showToast({ title: '请填写驳回原因', icon: 'none' })
+        .catch(err => console.error('[RecordFormPage] Toast失败:', err))
+      return
+    }
+
+    const recordId = currentRecord!.id as string
+    const success = qualityCheck(recordId, pass, contentVal, '质检')
+    if (success) {
+      Taro.showToast({ title: pass ? '质检通过' : '已驳回', icon: 'success' })
+        .catch(err => console.error('[RecordFormPage] Toast失败:', err))
+    } else {
+      Taro.showToast({ title: '操作失败', icon: 'error' })
+        .catch(err => console.error('[RecordFormPage] Toast失败:', err))
     }
   }
 
@@ -153,6 +226,16 @@ const RecordFormPage: React.FC = () => {
         selectPile(null)
       }
     }).catch(err => console.error('[RecordFormPage] Modal失败:', err))
+  }
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'draft': return '📝 草稿'
+      case 'pending_check': return '⏳ 待质检复核'
+      case 'checked': return '✅ 质检通过'
+      case 'signed': return '📋 已签入日志'
+      default: return status
+    }
   }
 
   if (!selectedPile || !currentRecord) {
@@ -177,11 +260,8 @@ const RecordFormPage: React.FC = () => {
 
   const needsReason = currentValidation?.overallStatus === 'error' && !currentRecord.exceptionReason
   const stages = currentRecord.stages || []
-
-  const getStageTitle = (stage: ConstructionStage) => {
-    const stageInfo = CONSTRUCTION_STAGES.find(s => s.key === stage)
-    return stageInfo?.label || stage
-  }
+  const isChecked = currentRecord.status === 'checked'
+  const isPendingCheck = currentRecord.status === 'pending_check'
 
   const getStageFields = (stage: ConstructionStage) => {
     return RECORD_FIELDS.filter(f => f.stage === stage)
@@ -222,6 +302,36 @@ const RecordFormPage: React.FC = () => {
             <Text className={styles.designValue}>{currentRecord.designConcreteVolume}m³</Text>
           </View>
         </View>
+        <View className={styles.drillOperatorRow}>
+          {currentRecord.drillNo && (
+            <View className={styles.drillOperatorItem}>
+              <Text className={styles.doLabel}>钻机</Text>
+              <Text className={styles.doValue}>⛏️ {currentRecord.drillNo}</Text>
+            </View>
+          )}
+          {currentRecord.operator && (
+            <View className={styles.drillOperatorItem}>
+              <Text className={styles.doLabel}>施工员</Text>
+              <Text className={styles.doValue}>👷 {currentRecord.operator}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      <View className={classnames(styles.statusBanner, styles[currentRecord.status || 'draft'])}>
+        <Text className={styles.statusBannerText}>
+          {getStatusLabel(currentRecord.status || 'draft')}
+        </Text>
+        {currentRecord.qualityCheck?.checkedBy && (
+          <Text className={styles.statusBannerSub}>
+            复核人：{currentRecord.qualityCheck.checkedBy} · {currentRecord.qualityCheck.checkedTime?.split(' ')[0]}
+          </Text>
+        )}
+        {currentRecord.qualityCheck?.comments && (
+          <Text className={styles.statusBannerComments}>
+            {currentRecord.qualityCheck.comments}
+          </Text>
+        )}
       </View>
 
       <StageProgress
@@ -269,14 +379,15 @@ const RecordFormPage: React.FC = () => {
           const stageFields = getStageFields(stage.key)
           const completed = isStageCompleted(stage.key)
           const isActive = activeStage === stage.key
-          const canSave = isStageComplete(stage.key, currentRecord) && !completed
+          const canSave = isStageComplete(stage.key, currentRecord) && !completed && !isChecked
 
           return (
             <View
               key={stage.key}
               className={classnames(styles.stageSection, {
                 [styles.active]: isActive,
-                [styles.completed]: completed
+                [styles.completed]: completed,
+                [styles.disabled]: isChecked
               })}
             >
               <View
@@ -328,6 +439,7 @@ const RecordFormPage: React.FC = () => {
                         unit={field.unit}
                         placeholder={field.placeholder}
                         required={field.required}
+                        disabled={isChecked}
                         onChange={(val) => handleFieldChange(field.key, val)}
                       />
                     ))}
@@ -345,17 +457,19 @@ const RecordFormPage: React.FC = () => {
                     )}
                   </FormSection>
 
-                  <View className={styles.stageActions}>
-                    <Button
-                      className={classnames(styles.stageSaveBtn, {
-                        [styles.disabled]: !canSave || isSavingStage === stage.key
-                      })}
-                      onClick={() => handleSaveStage(stage.key)}
-                      disabled={!canSave || isSavingStage === stage.key}
-                    >
-                      {isSavingStage === stage.key ? '保存中...' : (completed ? '已完成' : `保存${stage.label}阶段`)}
-                    </Button>
-                  </View>
+                  {!isChecked && (
+                    <View className={styles.stageActions}>
+                      <Button
+                        className={classnames(styles.stageSaveBtn, {
+                          [styles.disabled]: !canSave || isSavingStage === stage.key
+                        })}
+                        onClick={() => handleSaveStage(stage.key)}
+                        disabled={!canSave || isSavingStage === stage.key}
+                      >
+                        {isSavingStage === stage.key ? '保存中...' : (completed ? '已完成' : `保存${stage.label}阶段`)}
+                      </Button>
+                    </View>
+                  )}
                 </View>
               )}
             </View>
@@ -371,9 +485,41 @@ const RecordFormPage: React.FC = () => {
             type='textarea'
             placeholder={needsReason ? '请填写异常原因说明...' : '如无异常可留空'}
             required={needsReason}
+            disabled={isChecked}
             onChange={(val) => handleFieldChange('exceptionReason', val)}
           />
         </FormSection>
+
+        {currentRecord.changeLogs && currentRecord.changeLogs.length > 0 && (
+          <FormSection title='操作痕迹'>
+            <View className={styles.changeLogHeader} onClick={() => setShowChangeLogs(!showChangeLogs)}>
+              <Text className={styles.changeLogTitle}>
+                📝 修改记录（{currentRecord.changeLogs.length}条）
+              </Text>
+              <Text className={classnames(styles.expandIcon, { [styles.expanded]: showChangeLogs })}>
+                ▼
+              </Text>
+            </View>
+            {showChangeLogs && (
+              <View className={styles.changeLogList}>
+                {currentRecord.changeLogs.slice().reverse().map((log, index) => (
+                  <View key={index} className={styles.changeLogItem}>
+                    <View className={styles.changeLogMeta}>
+                      <Text className={styles.changeLogOperator}>{log.operator || '未知'}</Text>
+                      <Text className={styles.changeLogTime}>{log.changeTime}</Text>
+                    </View>
+                    <Text className={styles.changeLogContent}>
+                      {log.field}：{String(log.oldValue) || '空'} → {String(log.newValue) || '空'}
+                    </Text>
+                    {log.reason && (
+                      <Text className={styles.changeLogReason}>原因：{log.reason}</Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </FormSection>
+        )}
 
         <View className={styles.bottomSpacer} />
       </ScrollView>
@@ -385,13 +531,33 @@ const RecordFormPage: React.FC = () => {
         >
           取消
         </Button>
-        <Button
-          className={classnames(styles.saveBtn, { [styles.disabled]: isSaving })}
-          onClick={handleSaveFull}
-          disabled={isSaving}
-        >
-          {isSaving ? '保存中...' : '完整保存'}
-        </Button>
+        {isChecked ? (
+          <Button className={styles.checkedBtn} disabled>
+            ✅ 质检通过
+          </Button>
+        ) : isPendingCheck ? (
+          <>
+            <Button className={styles.rejectBtn} onClick={() => handleQualityCheck(false)}>
+              驳回修改
+            </Button>
+            <Button className={styles.passBtn} onClick={() => handleQualityCheck(true)}>
+              质检通过
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              className={classnames(styles.saveBtn, { [styles.disabled]: isSaving })}
+              onClick={handleSaveFull}
+              disabled={isSaving}
+            >
+              {isSaving ? '保存中...' : '保存草稿'}
+            </Button>
+            <Button className={styles.submitBtn} onClick={handleSubmitForCheck}>
+              提交复核
+            </Button>
+          </>
+        )}
       </View>
     </View>
   )

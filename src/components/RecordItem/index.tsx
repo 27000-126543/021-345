@@ -15,6 +15,7 @@ interface RecordItemProps {
   unit?: string
   placeholder?: string
   required?: boolean
+  disabled?: boolean
   onChange: (value: any) => void
 }
 
@@ -27,6 +28,7 @@ const RecordItem: React.FC<RecordItemProps> = ({
   unit,
   placeholder,
   required = false,
+  disabled = false,
   onChange
 }) => {
   const status = validation ? getFieldStatus(field as string, validation) : 'normal'
@@ -44,13 +46,15 @@ const RecordItem: React.FC<RecordItemProps> = ({
           className={classnames(styles.textarea, {
             [styles.pending]: status === 'pending',
             [styles.error]: status === 'error',
-            [styles.warning]: status === 'warning'
+            [styles.warning]: status === 'warning',
+            [styles.disabled]: disabled
           })}
           value={value || ''}
           placeholder={placeholder}
-          onInput={handleInputChange}
+          onInput={disabled ? undefined : handleInputChange}
           maxlength={500}
           autoHeight
+          disabled={disabled}
         />
       )
     }
@@ -60,12 +64,14 @@ const RecordItem: React.FC<RecordItemProps> = ({
         <Picker
           mode={type}
           value={value || ''}
-          onChange={(e) => onChange(e.detail.value)}
+          onChange={(e) => { if (!disabled) onChange(e.detail.value) }}
+          disabled={disabled}
         >
           <View className={classnames(styles.picker, {
             [styles.pending]: status === 'pending',
             [styles.error]: status === 'error',
-            [styles.warning]: status === 'warning'
+            [styles.warning]: status === 'warning',
+            [styles.disabled]: disabled
           })}>
             <Text className={classnames(styles.value, { [styles.placeholder]: !value })}>
               {value || placeholder}
@@ -80,12 +86,14 @@ const RecordItem: React.FC<RecordItemProps> = ({
         className={classnames(styles.input, {
           [styles.pending]: status === 'pending',
           [styles.error]: status === 'error',
-          [styles.warning]: status === 'warning'
+          [styles.warning]: status === 'warning',
+          [styles.disabled]: disabled
         })}
         type={type === 'number' ? 'digit' : 'text'}
         value={value ? String(value) : ''}
         placeholder={placeholder}
-        onInput={handleInputChange}
+        onInput={disabled ? undefined : handleInputChange}
+        disabled={disabled}
       />
     )
   }

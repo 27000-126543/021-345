@@ -153,6 +153,12 @@
   flex-direction: column;
 }
 
+.boardContainer {
+  max-height: calc(100vh - 480rpx);
+  display: flex;
+  flex-direction: column;
+}
+
 .statusTabs {
   display: flex;
   gap: $spacing-sm;

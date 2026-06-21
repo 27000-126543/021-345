@@ -33,8 +33,8 @@ const PileMap: React.FC<PileMapProps> = ({ piles, selectedArea, onPileClick }) =
 
   const areas = Array.from(new Set(filteredPiles.map(p => p.area)))
   
-  const maxX = Math.max(...filteredPiles.map(p => p.gridX || 1))
-  const maxY = Math.max(...filteredPiles.map(p => p.gridY || 1))
+  const maxX = filteredPiles.length > 0 ? Math.max(...filteredPiles.map(p => p.gridX || 1)) : 0
+  const maxY = filteredPiles.length > 0 ? Math.max(...filteredPiles.map(p => p.gridY || 1)) : 0
 
   const handlePileClick = (pile: PileInfo) => {
     setSelectedPileId(pile.id)
@@ -64,73 +64,83 @@ const PileMap: React.FC<PileMapProps> = ({ piles, selectedArea, onPileClick }) =
         </View>
       </View>
 
-      <ScrollView className={styles.mapScroll} scrollX scrollY>
-        <View className={styles.mapContainer}>
-          {areas.map((area, areaIndex) => (
-            <View key={area} className={styles.areaSection}>
-              <Text className={styles.areaTitle}>{area}</Text>
-              
-              <View className={styles.areaGrid}>
-                {Array.from({ length: maxY }).map((_, yIdx) => {
-                  const y = yIdx + 1
-                  return (
-                    <View key={y} className={styles.gridRow}>
-                      <Text className={styles.rowLabel}>Y{y}</Text>
-                      
-                      {Array.from({ length: maxX }).map((_, xIdx) => {
-                        const x = xIdx + 1
-                        const pile = filteredPiles.find(p => 
-                          p.area === area && p.gridX === x && p.gridY === y
-                        )
+      {filteredPiles.length === 0 ? (
+        <View className={styles.emptyState}>
+          <Text className={styles.emptyIcon}>🗺️</Text>
+          <Text className={styles.emptyText}>该区域暂无桩位</Text>
+          <Text className={styles.emptySubText}>请尝试切换区域查看其他桩位</Text>
+        </View>
+      ) : (
+        <ScrollView className={styles.mapScroll} scrollX scrollY>
+          <View className={styles.mapContainer}>
+            {areas.map((area, _areaIndex) => (
+              <View key={area} className={styles.areaSection}>
+                <Text className={styles.areaTitle}>{area}</Text>
+                
+                <View className={styles.areaGrid}>
+                  {Array.from({ length: maxY }).map((_, yIdx) => {
+                    const y = yIdx + 1
+                    return (
+                      <View key={y} className={styles.gridRow}>
+                        <Text className={styles.rowLabel}>Y{y}</Text>
                         
-                        return (
-                          <View key={`${x}-${y}`} className={styles.gridCell}>
-                            {pile ? (
-                              <View
-                                className={classnames(styles.pilePoint, {
-                                  [styles.selected]: selectedPileId === pile.id
-                                })}
-                                style={{
-                                  backgroundColor: statusBgColors[pile.status],
-                                  borderColor: statusColors[pile.status]
-                                }}
-                                onClick={() => handlePileClick(pile)}
-                              >
-                                <Text
-                                  className={styles.pileNo}
-                                  style={{ color: statusColors[pile.status] }}
+                        {Array.from({ length: maxX }).map((_, xIdx) => {
+                          const x = xIdx + 1
+                          const pile = filteredPiles.find(p => 
+                            p.area === area && p.gridX === x && p.gridY === y
+                          )
+                          
+                          return (
+                            <View key={`${x}-${y}`} className={styles.gridCell}>
+                              {pile ? (
+                                <View
+                                  className={classnames(styles.pilePoint, {
+                                    [styles.selected]: selectedPileId === pile.id
+                                  })}
+                                  style={{
+                                    backgroundColor: statusBgColors[pile.status],
+                                    borderColor: statusColors[pile.status]
+                                  }}
+                                  onClick={() => handlePileClick(pile)}
                                 >
-                                  {pile.pileNo.split('-')[1]}
-                                </Text>
-                                {pile.status === 'in_progress' && (
-                                  <View className={styles.pulseRing} style={{ borderColor: statusColors[pile.status] }} />
-                                )}
-                              </View>
-                            ) : (
-                              <View className={styles.emptyCell} />
-                            )}
-                          </View>
-                        )
-                      })}
-                    </View>
-                  )
-                })}
+                                  <Text
+                                    className={styles.pileNo}
+                                    style={{ color: statusColors[pile.status] }}
+                                  >
+                                    {pile.pileNo.split('-')[1]}
+                                  </Text>
+                                  {pile.status === 'in_progress' && (
+                                    <View className={styles.pulseRing} style={{ borderColor: statusColors[pile.status] }} />
+                                  )}
+                                </View>
+                              ) : (
+                                <View className={styles.emptyCell} />
+                              )}
+                            </View>
+                          )
+                        })}
+                      </View>
+                    )
+                  })}
 
-                <View className={styles.colLabels}>
-                  <View className={styles.rowLabel} />
-                  {Array.from({ length: maxX }).map((_, xIdx) => (
-                    <Text key={xIdx + 1} className={styles.colLabel}>X{xIdx + 1}</Text>
-                  ))}
+                  <View className={styles.colLabels}>
+                    <View className={styles.rowLabel} />
+                    {Array.from({ length: maxX }).map((_, xIdx) => (
+                      <Text key={xIdx + 1} className={styles.colLabel}>X{xIdx + 1}</Text>
+                    ))}
+                  </View>
                 </View>
               </View>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
+            ))}
+          </View>
+        </ScrollView>
+      )}
 
-      <View className={styles.tip}>
-        <Text className={styles.tipText}>💡 点击桩位可进入成孔记录</Text>
-      </View>
+      {filteredPiles.length > 0 && (
+        <View className={styles.tip}>
+          <Text className={styles.tipText}>💡 点击桩位可进入成孔记录</Text>
+        </View>
+      )}
     </View>
   )
 }

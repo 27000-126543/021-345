@@ -70,6 +70,76 @@
   font-weight: $font-weight-semibold;
 }
 
+.drillOperatorRow {
+  display: flex;
+  gap: $spacing-lg;
+  padding-top: $spacing-md;
+  margin-top: $spacing-md;
+  border-top: 2rpx solid rgba(255, 255, 255, 0.2);
+}
+
+.drillOperatorItem {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.doLabel {
+  font-size: $font-size-xs;
+  opacity: 0.8;
+}
+
+.doValue {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+}
+
+.statusBanner {
+  border-radius: $radius-lg;
+  padding: $spacing-md $spacing-lg;
+  margin-bottom: $spacing-md;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+
+  &.draft {
+    background-color: rgba(158, 158, 158, 0.1);
+    border: 2rpx solid rgba(158, 158, 158, 0.3);
+  }
+
+  &.pending_check {
+    background-color: rgba(251, 140, 0, 0.1);
+    border: 2rpx solid rgba(251, 140, 0, 0.3);
+  }
+
+  &.checked {
+    background-color: rgba(67, 160, 71, 0.1);
+    border: 2rpx solid rgba(67, 160, 71, 0.3);
+  }
+
+  &.signed {
+    background-color: rgba(30, 136, 229, 0.1);
+    border: 2rpx solid rgba(30, 136, 229, 0.3);
+  }
+}
+
+.statusBannerText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.statusBannerSub {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+}
+
+.statusBannerComments {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  font-style: italic;
+}
+
 .validationSummary {
   background-color: $color-bg-card;
   border-radius: $radius-lg;
@@ -357,10 +427,11 @@
 .saveBtn {
   flex: 1;
   height: $button-height-lg;
-  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  background-color: $color-bg-page;
+  border: 2rpx solid $color-border;
   border-radius: $radius-button;
-  color: $color-text-white;
-  font-size: $font-size-lg;
+  color: $color-text-secondary;
+  font-size: $font-size-md;
   font-weight: $font-weight-medium;
   display: flex;
   align-items: center;
@@ -376,6 +447,78 @@
     background-color: $color-text-disabled;
     opacity: 0.6;
   }
+}
+
+.submitBtn {
+  flex: 1.5;
+  height: $button-height-lg;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-button;
+  color: $color-text-white;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
+
+.rejectBtn {
+  flex: 1;
+  height: $button-height-lg;
+  background-color: $color-bg-page;
+  border: 2rpx solid $color-error;
+  border-radius: $radius-button;
+  color: $color-error;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
+
+.passBtn {
+  flex: 1.5;
+  height: $button-height-lg;
+  background: linear-gradient(135deg, $color-success 0%, rgba(67, 160, 71, 0.7) 100%);
+  border-radius: $radius-button;
+  color: $color-text-white;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
+
+.checkedBtn {
+  flex: 1;
+  height: $button-height-lg;
+  background-color: rgba(67, 160, 71, 0.1);
+  border: 2rpx solid $color-success;
+  border-radius: $radius-button;
+  color: $color-success;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .selectPileBtn {
@@ -411,4 +554,67 @@
 
 .volumeValue {
   font-weight: $font-weight-semibold;
+}
+
+.stageSection {
+  &.disabled {
+    opacity: 0.7;
+  }
+}
+
+.changeLogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: $spacing-sm 0;
+}
+
+.changeLogTitle {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  font-weight: $font-weight-medium;
+}
+
+.changeLogList {
+  margin-top: $spacing-md;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.changeLogItem {
+  padding: $spacing-md;
+  background-color: $color-bg-page;
+  border-radius: $radius-md;
+  border-left: 4rpx solid $color-border;
+}
+
+.changeLogMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-xs;
+}
+
+.changeLogOperator {
+  font-size: $font-size-sm;
+  color: $color-primary;
+  font-weight: $font-weight-medium;
+}
+
+.changeLogTime {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.changeLogContent {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.changeLogReason {
+  margin-top: $spacing-xs;
+  font-size: $font-size-xs;
+  color: $color-warning;
+  font-style: italic;
 }

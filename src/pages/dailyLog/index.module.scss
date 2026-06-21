@@ -488,6 +488,26 @@
   z-index: 100;
 }
 
+.previewBtn {
+  width: 200rpx;
+  height: $button-height-lg;
+  background-color: $color-bg-page;
+  border: 2rpx solid $color-border;
+  border-radius: $radius-button;
+  color: $color-text-secondary;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
+
 .generateBtn {
   flex: 1;
   height: $button-height-lg;
@@ -624,4 +644,256 @@
     background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
     color: $color-text-white;
   }
+}
+
+.previewModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: $spacing-lg;
+}
+
+.previewContent {
+  background-color: #fff;
+  border-radius: $radius-lg;
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: $shadow-popup;
+}
+
+.previewHeader {
+  padding: $spacing-lg;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  color: $color-text-white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.previewTitle {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+}
+
+.previewDate {
+  font-size: $font-size-sm;
+  opacity: 0.9;
+}
+
+.previewScroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: $spacing-lg;
+  background-color: #f5f5f5;
+}
+
+.previewStatsRow {
+  display: flex;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-lg;
+}
+
+.previewStat {
+  flex: 1;
+  background-color: #fff;
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  text-align: center;
+}
+
+.previewStatValue {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+}
+
+.previewStatLabel {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: $spacing-xs;
+}
+
+.previewSection {
+  background-color: #fff;
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  margin-bottom: $spacing-md;
+}
+
+.previewSectionTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+}
+
+.previewPendingItem {
+  font-size: $font-size-sm;
+  color: $color-warning;
+  line-height: 1.8;
+  display: block;
+}
+
+.previewPileCard {
+  border: 2rpx solid $color-border;
+  border-radius: $radius-sm;
+  padding: $spacing-md;
+  margin-bottom: $spacing-md;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.previewPileHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-sm;
+}
+
+.previewPileNo {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+}
+
+.previewPileStatus {
+  font-size: $font-size-xs;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $radius-xs;
+
+  &.checked {
+    background-color: rgba(67, 160, 71, 0.1);
+    color: $color-success;
+  }
+
+  &.pending_check {
+    background-color: rgba(251, 140, 0, 0.1);
+    color: $color-warning;
+  }
+
+  &.draft {
+    background-color: rgba(158, 158, 158, 0.1);
+    color: #9E9E9E;
+  }
+
+  &.signed {
+    background-color: rgba(30, 136, 229, 0.1);
+    color: $color-primary;
+  }
+}
+
+.previewPileInfo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
+}
+
+.previewPileInfoItem {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  width: calc(50% - #{$spacing-sm});
+}
+
+.previewPileStages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+  margin-bottom: $spacing-sm;
+}
+
+.previewStageTag {
+  font-size: $font-size-xs;
+  background-color: rgba(30, 136, 229, 0.1);
+  color: $color-primary;
+  padding: 4rpx 12rpx;
+  border-radius: $radius-xs;
+}
+
+.previewPileExceptions {
+  margin-bottom: $spacing-sm;
+}
+
+.previewException {
+  font-size: $font-size-xs;
+  color: $color-error;
+  line-height: 1.6;
+  display: block;
+}
+
+.previewQC {
+  padding-top: $spacing-sm;
+  border-top: 2rpx dashed $color-border;
+}
+
+.previewQCText {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+}
+
+.previewSignInfo {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.previewFooter {
+  padding: $spacing-md 0;
+  text-align: center;
+}
+
+.previewFooterText {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.previewActions {
+  display: flex;
+  gap: $spacing-md;
+  padding: $spacing-lg;
+  border-top: 2rpx solid $color-divider;
+  background-color: $color-bg-card;
+  flex-shrink: 0;
+}
+
+.previewCancelBtn {
+  flex: 1;
+  height: $button-height-md;
+  background-color: $color-bg-page;
+  border: 2rpx solid $color-border;
+  border-radius: $radius-button;
+  color: $color-text-secondary;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.previewShareBtn {
+  flex: 1.5;
+  height: $button-height-md;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-button;
+  color: $color-text-white;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

@@ -59,6 +59,12 @@
     background-color: $color-bg-pending;
     border-color: $color-warning;
   }
+
+  &.disabled {
+    background-color: $color-bg-page;
+    color: $color-text-secondary;
+    opacity: 0.8;
+  }
 }
 
 .picker {
@@ -85,6 +91,11 @@
   &.warning {
     background-color: $color-bg-pending;
     border-color: $color-warning;
+  }
+
+  &.disabled {
+    background-color: $color-bg-page;
+    opacity: 0.8;
   }
 }
 
@@ -119,6 +130,12 @@
   &.error {
     background-color: $color-bg-error;
     border-color: $color-error;
+  }
+
+  &.disabled {
+    background-color: $color-bg-page;
+    color: $color-text-secondary;
+    opacity: 0.8;
   }
 }
 
