@@ -143,3 +143,31 @@ export const RECORD_FIELDS: RecordField[] = [
   { key: 'cageLiftTime', label: '钢筋笼下放时间', required: true, placeholder: '请选择下放时间', stage: 'cage' },
   { key: 'concreteVolume', label: '混凝土灌注量', required: true, unit: 'm³', placeholder: '请输入灌注量', stage: 'concrete', isNumeric: true }
 ]
+
+export const DRILL_LIST: string[] = ['1号钻机', '2号钻机', '3号钻机']
+export const OPERATOR_LIST: string[] = ['张工', '李工', '王工', '赵工', '刘工']
+
+export interface AssignAdjustLog {
+  id: string
+  pileId: string
+  pileNo: string
+  field: 'drillNo' | 'operator'
+  oldValue: string
+  newValue: string
+  adjustTime: string
+  adjustBy: string
+  reason?: string
+}
+
+export const FIELD_LABELS: Record<string, string> = {
+  drillStartTime: '开钻时间',
+  drillNo: '钻机编号',
+  designDiameter: '设计桩径',
+  designLength: '设计桩长',
+  actualDepth: '实际孔深',
+  mudWeight: '泥浆比重',
+  sedimentThickness: '沉渣厚度',
+  cageLiftTime: '钢筋笼下放时间',
+  concreteVolume: '混凝土灌注量',
+  exceptionReason: '异常原因说明'
+}

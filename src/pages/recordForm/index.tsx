@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, Button, ScrollView } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import classnames from 'classnames'
 import { usePileStore } from '@/store/usePileStore'
 import { PileRecord, ConstructionStage, CONSTRUCTION_STAGES, RECORD_FIELDS } from '@/types/pile'
@@ -22,6 +22,9 @@ const RecordFormPage: React.FC = () => {
   const getRecordByPileId = usePileStore(state => state.getRecordByPileId)
   const submitForQualityCheck = usePileStore(state => state.submitForQualityCheck)
   const qualityCheck = usePileStore(state => state.qualityCheck)
+  const loadExistingRecord = usePileStore(state => state.loadExistingRecord)
+  const loadPiles = usePileStore(state => state.loadPiles)
+  const loadRecords = usePileStore(state => state.loadRecords)
 
   const [isSaving, setIsSaving] = useState(false)
   const [isSavingStage, setIsSavingStage] = useState<string | null>(null)
@@ -38,6 +41,15 @@ const RecordFormPage: React.FC = () => {
       }
     }
   }, [selectedPile, currentRecord?.currentStage])
+
+  useDidShow(() => {
+    loadPiles()
+    loadRecords()
+    if (selectedPile) {
+      loadExistingRecord(selectedPile.id)
+      console.log('[RecordForm] useDidShow刷新记录状态')
+    }
+  })
 
   const handleFieldChange = (field: keyof PileRecord, value: any) => {
     if (currentRecord?.status === 'checked') {

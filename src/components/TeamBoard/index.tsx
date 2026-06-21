@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text, ScrollView, Picker } from '@tarojs/components'
+import Taro from '@tarojs/taro'
 import classnames from 'classnames'
-import { PileInfo } from '@/types/pile'
+import { PileInfo, DRILL_LIST, OPERATOR_LIST } from '@/types/pile'
 import StatusTag from '@/components/StatusTag'
 import styles from './index.module.scss'
 
@@ -10,6 +11,7 @@ interface TeamBoardProps {
   byOperator: Record<string, PileInfo[]>
   byStage: Record<'pending' | 'drill_start' | 'drill_end' | 'cage' | 'concrete' | 'completed', PileInfo[]>
   onPileClick: (pile: PileInfo) => void
+  onAdjustAssignment?: (pileId: string, field: 'drillNo' | 'operator', newValue: string, reason?: string) => void
 }
 
 type GroupByMode = 'drill' | 'operator' | 'stage'
@@ -32,8 +34,10 @@ const stageColors: Record<string, string> = {
   completed: '#43A047'
 }
 
-const TeamBoard: React.FC<TeamBoardProps> = ({ byDrill, byOperator, byStage, onPileClick }) => {
+const TeamBoard: React.FC<TeamBoardProps> = ({ byDrill, byOperator, byStage, onPileClick, onAdjustAssignment }) => {
   const [groupBy, setGroupBy] = useState<GroupByMode>('drill')
+  const [adjustPile, setAdjustPile] = useState<PileInfo | null>(null)
+  const [adjustField, setAdjustField] = useState<'drillNo' | 'operator'>('drillNo')
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -44,14 +48,90 @@ const TeamBoard: React.FC<TeamBoardProps> = ({ byDrill, byOperator, byStage, onP
     }
   }
 
-  const renderGroupCard = (title: string, piles: PileInfo[], color?: string) => {
+  const handleLongPressChip = (pile: PileInfo, field: 'drillNo' | 'operator') => {
+    if (!onAdjustAssignment) return
+    if (pile.status === 'completed') {
+      Taro.showToast({ title: '已完成的桩位不可调整', icon: 'none' })
+        .catch(err => console.error('[TeamBoard] Toast失败:', err))
+      return
+    }
+    setAdjustPile(pile)
+    setAdjustField(field)
+    setTimeout(() => {
+      const options = field === 'drillNo' ? DRILL_LIST : OPERATOR_LIST
+      const currentVal = String((pile as any)[field] || '')
+      const currentIdx = options.indexOf(currentVal)
+      const newVal = options[currentIdx >= 0 ? currentIdx : 0]
+      confirmAdjust(pile, field, newVal)
+    }, 50)
+  }
+
+  const confirmAdjust = async (pile: PileInfo, field: 'drillNo' | 'operator', pickerValue: string) => {
+    const currentVal = String((pile as any)[field] || '')
+    if (pickerValue === currentVal) {
+      setAdjustPile(null)
+      return
+    }
+    const fieldLabel = field === 'drillNo' ? '钻机' : '施工员'
+    const modalOpts: any = {
+      title: `调整${fieldLabel}`,
+      content: `将 ${pile.pileNo} 的${fieldLabel}从「${currentVal || '未分配'}」调整为「${pickerValue}」`,
+      editable: true,
+      placeholderText: '选填：调整原因（如临时换班）',
+      confirmText: '确认调整',
+      cancelText: '取消',
+      confirmColor: '#1E88E5'
+    }
+    const res: any = await Taro.showModal(modalOpts).catch(err => {
+      console.error('[TeamBoard] Modal失败:', err)
+      return { confirm: false, content: '' }
+    })
+    if (!res.confirm) {
+      setAdjustPile(null)
+      return
+    }
+    onAdjustAssignment!(pile.id, field, pickerValue, res.content || undefined)
+    setAdjustPile(null)
+    Taro.showToast({ title: '调整成功', icon: 'success' })
+      .catch(err => console.error('[TeamBoard] Toast失败:', err))
+  }
+
+  const renderPileChip = (pile: PileInfo, field: 'drillNo' | 'operator' | null) => (
+    <View
+      key={pile.id}
+      className={classnames(styles.pileChip, {
+        [styles.hasAdjust]: !!field && !!onAdjustAssignment
+      })}
+    >
+      <View
+        className={styles.pileChipMain}
+        onClick={() => onPileClick(pile)}
+      >
+        <Text className={styles.pileChipNo}>{pile.pileNo}</Text>
+        <StatusTag status={getStatusColor(pile.status)} />
+      </View>
+      {field && onAdjustAssignment && (
+        <View
+          className={styles.adjustBtn}
+          onClick={(e) => {
+            e.stopPropagation?.()
+            handleLongPressChip(pile, field)
+          }}
+        >
+          <Text className={styles.adjustIcon}>↔</Text>
+        </View>
+      )}
+    </View>
+  )
+
+  const renderGroupCard = (title: string, piles: PileInfo[], color?: string, field: 'drillNo' | 'operator' | null = null) => {
     const completed = piles.filter(p => p.status === 'completed').length
     const inProgress = piles.filter(p => p.status === 'in_progress').length
     const pending = piles.filter(p => p.status === 'pending').length
     const exception = piles.filter(p => p.status === 'exception').length
 
     return (
-      <View key={title} className={styles.groupCard}>
+      <View key={title + (field || '')} className={styles.groupCard}>
         <View className={styles.groupHeader}>
           <View className={styles.groupTitleRow}>
             {color && <View className={styles.groupColorBar} style={{ backgroundColor: color }} />}
@@ -87,16 +167,7 @@ const TeamBoard: React.FC<TeamBoardProps> = ({ byDrill, byOperator, byStage, onP
 
         <ScrollView className={styles.pileScroll} scrollX>
           <View className={styles.pileList}>
-            {piles.map(pile => (
-              <View
-                key={pile.id}
-                className={styles.pileChip}
-                onClick={() => onPileClick(pile)}
-              >
-                <Text className={styles.pileChipNo}>{pile.pileNo}</Text>
-                <StatusTag status={getStatusColor(pile.status)} />
-              </View>
-            ))}
+            {piles.map(pile => renderPileChip(pile, field))}
           </View>
         </ScrollView>
       </View>
@@ -114,7 +185,7 @@ const TeamBoard: React.FC<TeamBoardProps> = ({ byDrill, byOperator, byStage, onP
           </View>
         )
       }
-      return drills.map(drill => renderGroupCard(drill, byDrill[drill], '#1E88E5'))
+      return drills.map(drill => renderGroupCard(drill, byDrill[drill], '#1E88E5', 'drillNo'))
     }
 
     if (groupBy === 'operator') {
@@ -127,14 +198,14 @@ const TeamBoard: React.FC<TeamBoardProps> = ({ byDrill, byOperator, byStage, onP
           </View>
         )
       }
-      return operators.map(op => renderGroupCard(op, byOperator[op], '#00897B'))
+      return operators.map(op => renderGroupCard(op, byOperator[op], '#00897B', 'operator'))
     }
 
     const stages: Array<keyof typeof byStage> = ['pending', 'drill_start', 'drill_end', 'cage', 'concrete', 'completed']
     return stages.map(stage => {
       const piles = byStage[stage]
       if (piles.length === 0) return null
-      return renderGroupCard(stageLabels[stage] || stage, piles, stageColors[stage])
+      return renderGroupCard(stageLabels[stage] || stage, piles, stageColors[stage], null)
     })
   }
 
@@ -164,8 +235,24 @@ const TeamBoard: React.FC<TeamBoardProps> = ({ byDrill, byOperator, byStage, onP
       </ScrollView>
 
       <View className={styles.tip}>
-        <Text className={styles.tipText}>💡 点击桩号可直接进入成孔记录，适合班前快速分配任务</Text>
+        <Text className={styles.tipText}>
+          💡 点击桩号进入成孔记录 · 点击↔可临时调整钻机/施工员（班前分活用）
+        </Text>
       </View>
+
+      {adjustPile && (
+        <Picker
+          mode='selector'
+          range={adjustField === 'drillNo' ? DRILL_LIST : OPERATOR_LIST}
+          onChange={(e) => {
+            const val = (adjustField === 'drillNo' ? DRILL_LIST : OPERATOR_LIST)[e.detail.value]
+            confirmAdjust(adjustPile, adjustField, val)
+          }}
+          onCancel={() => setAdjustPile(null)}
+        >
+          <View className={styles.hiddenPicker} />
+        </Picker>
+      )}
     </View>
   )
 }

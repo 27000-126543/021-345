@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, ScrollView, Picker } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import classnames from 'classnames'
 import dayjs from 'dayjs'
 import { usePileStore } from '@/store/usePileStore'
@@ -25,11 +25,19 @@ const PileListPage: React.FC = () => {
   const selectPile = usePileStore(state => state.selectPile)
   const getRecordByPileId = usePileStore(state => state.getRecordByPileId)
   const getTeamBoardData = usePileStore(state => state.getTeamBoardData)
+  const adjustPileAssignment = usePileStore(state => state.adjustPileAssignment)
+  const loadRecords = usePileStore(state => state.loadRecords)
 
   useEffect(() => {
     initMockData()
     loadPiles()
   }, [])
+
+  useDidShow(() => {
+    loadPiles()
+    loadRecords()
+    console.log('[PileList] useDidShow刷新状态')
+  })
 
   const stats = getStats()
   const teamBoardData = getTeamBoardData()
@@ -228,6 +236,9 @@ const PileListPage: React.FC = () => {
               byOperator={teamBoardData.byOperator}
               byStage={teamBoardData.byStage}
               onPileClick={handlePileClick}
+              onAdjustAssignment={(pileId, field, newValue, reason) => {
+                adjustPileAssignment(pileId, field, newValue, reason, '班组长')
+              }}
             />
           </View>
         )}

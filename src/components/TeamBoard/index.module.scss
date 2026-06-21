@@ -121,19 +121,49 @@
 .pileChip {
   display: inline-flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: $spacing-xs;
-  padding: $spacing-sm $spacing-md;
   background-color: $color-bg-page;
   border-radius: $radius-md;
   border: 2rpx solid $color-border;
   transition: all $transition-fast;
-  min-width: 120rpx;
+  min-width: 140rpx;
+  overflow: hidden;
 
   &:active {
-    transform: scale(0.95);
     border-color: $color-primary;
   }
+
+  &.hasAdjust {
+    min-width: 160rpx;
+  }
+}
+
+.pileChipMain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: $spacing-sm $spacing-md;
+  gap: $spacing-xs;
+}
+
+.adjustBtn {
+  height: 44rpx;
+  background-color: rgba(30, 136, 229, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 2rpx solid rgba(30, 136, 229, 0.15);
+
+  &:active {
+    background-color: rgba(30, 136, 229, 0.15);
+  }
+}
+
+.adjustIcon {
+  font-size: $font-size-xs;
+  color: #1e88e5;
+  font-weight: $font-weight-bold;
 }
 
 .pileChipNo {
@@ -172,4 +202,11 @@
 .tipText {
   font-size: $font-size-sm;
   color: $color-success;
+}
+
+.hiddenPicker {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  bottom: -9999rpx;
 }

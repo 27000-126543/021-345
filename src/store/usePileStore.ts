@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { PileInfo, PileRecord, DailyLog, RecordValidation, ConstructionStage, CONSTRUCTION_STAGES, LogRecordDetail, RECORD_FIELDS } from '@/types/pile'
+import { PileInfo, PileRecord, DailyLog, RecordValidation, ConstructionStage, CONSTRUCTION_STAGES, LogRecordDetail, RECORD_FIELDS, AssignAdjustLog, FIELD_LABELS } from '@/types/pile'
 import {
   getPileList,
   getPileRecords,
@@ -8,7 +8,10 @@ import {
   getDailyLogs,
   saveDailyLog,
   updatePileStatus,
-  generateId
+  generateId,
+  savePileInfo,
+  getAssignAdjustLogs,
+  saveAssignAdjustLog
 } from '@/utils/storage'
 import { validateRecord, calculateDesignConcreteVolume, isStageComplete } from '@/utils/validator'
 import dayjs from 'dayjs'
@@ -19,10 +22,17 @@ interface TeamBoardData {
   byStage: Record<'pending' | 'drill_start' | 'drill_end' | 'cage' | 'concrete' | 'completed', PileInfo[]>
 }
 
+interface QualityFilter {
+  drillNo?: string
+  operator?: string
+  exceptionType?: string
+}
+
 interface PileStore {
   piles: PileInfo[]
   records: PileRecord[]
   dailyLogs: DailyLog[]
+  assignAdjustLogs: AssignAdjustLog[]
   selectedPile: PileInfo | null
   currentRecord: Partial<PileRecord> | null
   currentValidation: RecordValidation | null
@@ -30,6 +40,7 @@ interface PileStore {
   loadPiles: () => void
   loadRecords: () => void
   loadDailyLogs: () => void
+  loadAssignAdjustLogs: () => void
   selectPile: (pile: PileInfo | null) => void
   updateRecordField: (field: keyof PileRecord, value: any, reason?: string) => void
   saveCurrentRecord: () => boolean
@@ -45,8 +56,10 @@ interface PileStore {
   submitForQualityCheck: () => boolean
   qualityCheck: (recordId: string, pass: boolean, comments?: string, inspector?: string) => boolean
   getTeamBoardData: () => TeamBoardData
-  getPendingQualityChecks: () => PileRecord[]
+  getPendingQualityChecks: (filter?: QualityFilter) => PileRecord[]
   exportDailyReport: (date?: string) => DailyLog | null
+  adjustPileAssignment: (pileId: string, field: 'drillNo' | 'operator', newValue: string, reason?: string, adjustBy?: string) => boolean
+  refreshCurrentRecordState: () => void
 }
 
 const initStages = (): PileRecord['stages'] => {
@@ -66,6 +79,7 @@ export const usePileStore = create<PileStore>((set, get) => ({
   piles: [],
   records: [],
   dailyLogs: [],
+  assignAdjustLogs: [],
   selectedPile: null,
   currentRecord: null,
   currentValidation: null,
@@ -89,6 +103,12 @@ export const usePileStore = create<PileStore>((set, get) => ({
     console.log('[Store] 加载施工日志:', logs.length, '条')
   },
 
+  loadAssignAdjustLogs: () => {
+    const logs = getAssignAdjustLogs()
+    set({ assignAdjustLogs: logs })
+    console.log('[Store] 加载调整记录:', logs.length, '条')
+  },
+
   selectPile: (pile) => {
     set({ selectedPile: pile })
     if (pile) {
@@ -96,6 +116,8 @@ export const usePileStore = create<PileStore>((set, get) => ({
       if (!loaded) {
         get().initNewRecord(pile)
       }
+    } else {
+      set({ currentRecord: null, currentValidation: null })
     }
   },
 
@@ -112,7 +134,7 @@ export const usePileStore = create<PileStore>((set, get) => ({
         currentRecord: existingRecord,
         currentValidation: validation
       })
-      console.log('[Store] 加载已有记录:', existingRecord.pileNo, '阶段:', existingRecord.currentStage)
+      console.log('[Store] 加载已有记录:', existingRecord.pileNo, '阶段:', existingRecord.currentStage, '质检状态:', existingRecord.status)
       return true
     }
     return false
@@ -175,7 +197,7 @@ export const usePileStore = create<PileStore>((set, get) => ({
     }
 
     if (oldValue !== value && currentRecord.id) {
-      const fieldLabel = RECORD_FIELDS.find(f => f.key === field)?.label || String(field)
+      const fieldLabel = FIELD_LABELS[String(field)] || RECORD_FIELDS.find(f => f.key === field)?.label || String(field)
       const newChangeLog = {
         field: fieldLabel,
         oldValue: oldValue ?? '(空)',
@@ -243,12 +265,12 @@ export const usePileStore = create<PileStore>((set, get) => ({
 
     try {
       const allStagesComplete = Object.values(updatedValidation.stageStatus || {}).every(s => s === 'normal')
-      const recordStatus: PileRecord['status'] = allStagesComplete ? 'pending_check' : 'draft'
+      const recordStatus: PileRecord['status'] = allStagesComplete ? 'pending_check' : (updatedRecord.status === 'checked' || updatedRecord.status === 'pending_check') ? updatedRecord.status : 'draft'
 
       const recordToSave: PileRecord = {
         ...updatedRecord,
         validation: updatedValidation,
-        status: recordStatus,
+        status: updatedRecord.status === 'checked' ? 'checked' : recordStatus,
         qualityCheck: (updatedRecord as any).qualityCheck || DEFAULT_QUALITY_CHECK,
         changeLogs: (updatedRecord as any).changeLogs || DEFAULT_CHANGE_LOGS,
         createTime: updatedRecord.createTime || dayjs().format('YYYY-MM-DD HH:mm:ss'),
@@ -258,8 +280,10 @@ export const usePileStore = create<PileStore>((set, get) => ({
       savePileRecord(recordToSave)
       
       let pileStatus: PileInfo['status'] = 'in_progress'
-      if (allStagesComplete) {
+      if (allStagesComplete && recordStatus === 'checked') {
         pileStatus = updatedValidation.overallStatus === 'error' ? 'exception' : 'completed'
+      } else if (allStagesComplete) {
+        pileStatus = updatedValidation.overallStatus === 'error' ? 'exception' : 'in_progress'
       } else if (updatedValidation.overallStatus === 'error') {
         pileStatus = 'exception'
       }
@@ -271,9 +295,9 @@ export const usePileStore = create<PileStore>((set, get) => ({
 
       const records = getPileRecords()
       const piles = getPileList()
-      set({ records, piles })
+      set({ records, piles, currentRecord: recordToSave })
 
-      console.log('[Store] 阶段保存成功:', stage, '桩号:', recordToSave.pileNo, '状态:', pileStatus)
+      console.log('[Store] 阶段保存成功:', stage, '桩号:', recordToSave.pileNo, '记录状态:', recordToSave.status, '桩位状态:', pileStatus)
       return true
     } catch (error) {
       console.error('[Store] 阶段保存失败:', error)
@@ -289,11 +313,13 @@ export const usePileStore = create<PileStore>((set, get) => ({
       const allStagesComplete = currentValidation.stageStatus && 
         Object.values(currentValidation.stageStatus).every(s => s === 'normal')
 
-      let status: PileRecord['status'] = 'draft'
-      if (allStagesComplete && currentValidation.missingFields.length === 0) {
+      let status: PileRecord['status'] = currentRecord.status === 'checked' ? 'checked' : 'draft'
+      if (!currentRecord.status || currentRecord.status === 'draft') {
+        if (allStagesComplete && currentValidation.missingFields.length === 0) {
+          status = 'pending_check'
+        }
+      } else if (currentRecord.status === 'pending_check') {
         status = 'pending_check'
-      } else if (currentValidation.missingFields.length === 0) {
-        status = 'submitted' as any
       }
 
       const updatedStages = allStagesComplete
@@ -314,8 +340,10 @@ export const usePileStore = create<PileStore>((set, get) => ({
       savePileRecord(recordToSave)
       
       let pileStatus: PileInfo['status'] = 'in_progress'
-      if (allStagesComplete) {
+      if (allStagesComplete && status === 'checked') {
         pileStatus = currentValidation.overallStatus === 'error' ? 'exception' : 'completed'
+      } else if (allStagesComplete) {
+        pileStatus = currentValidation.overallStatus === 'error' ? 'exception' : 'in_progress'
       } else if (currentValidation.overallStatus === 'error') {
         pileStatus = 'exception'
       }
@@ -327,9 +355,9 @@ export const usePileStore = create<PileStore>((set, get) => ({
 
       const records = getPileRecords()
       const piles = getPileList()
-      set({ records, piles })
+      set({ records, piles, currentRecord: recordToSave })
 
-      console.log('[Store] 保存记录成功:', recordToSave.pileNo, '状态:', status)
+      console.log('[Store] 保存记录成功:', recordToSave.pileNo, '记录状态:', status)
       return true
     } catch (error) {
       console.error('[Store] 保存记录失败:', error)
@@ -355,6 +383,7 @@ export const usePileStore = create<PileStore>((set, get) => ({
       const updatedRecord: PileRecord = {
         ...currentRecord,
         status: 'pending_check',
+        qualityCheck: { checked: false },
         updateTime: dayjs().format('YYYY-MM-DD HH:mm:ss')
       } as PileRecord
 
@@ -378,37 +407,53 @@ export const usePileStore = create<PileStore>((set, get) => ({
 
     const record = records[recordIndex]
     if (record.status !== 'pending_check') {
-      console.log('[Store] 该记录未处于待复核状态')
+      console.log('[Store] 该记录未处于待复核状态:', record.pileNo, '当前状态:', record.status)
       return false
     }
 
     try {
+      const now = dayjs().format('YYYY-MM-DD HH:mm:ss')
       const updatedRecord: PileRecord = {
         ...record,
         status: pass ? 'checked' : 'draft',
         qualityCheck: {
-          checked: true,
+          checked: pass,
           checkedBy: inspector,
-          checkedTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+          checkedTime: now,
           result: pass ? 'pass' : 'reject',
           comments
         },
-        updateTime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+        updateTime: now
       }
 
       savePileRecord(updatedRecord)
       
+      let newPileStatus: PileInfo['status'] = record.pileId ? getPileList().find(p => p.id === record.pileId)?.status || 'in_progress' : 'in_progress'
       if (pass && record.pileId) {
-        updatePileStatus(record.pileId, 'completed')
+        newPileStatus = record.validation.overallStatus === 'error' ? 'exception' : 'completed'
+        updatePileStatus(record.pileId, newPileStatus)
       } else if (!pass && record.pileId) {
+        newPileStatus = 'in_progress'
         updatePileStatus(record.pileId, 'in_progress')
       }
 
       const allRecords = getPileRecords()
       const piles = getPileList()
-      set({ records: allRecords, piles })
 
-      console.log('[Store] 质检完成:', record.pileNo, pass ? '通过' : '驳回')
+      const { currentRecord: currentRec, selectedPile } = get()
+      let newCurrentRecord = currentRec
+      if (currentRec?.id === recordId) {
+        newCurrentRecord = updatedRecord
+      } else if (selectedPile) {
+        const reloaded = get().loadExistingRecord(selectedPile.id)
+        if (!reloaded) {
+          newCurrentRecord = currentRec
+        }
+      }
+
+      set({ records: allRecords, piles, currentRecord: newCurrentRecord })
+
+      console.log('[Store] 质检完成:', record.pileNo, pass ? '通过✅' : '驳回↩️', '桩位状态:', newPileStatus)
       return true
     } catch (error) {
       console.error('[Store] 质检操作失败:', error)
@@ -416,8 +461,29 @@ export const usePileStore = create<PileStore>((set, get) => ({
     }
   },
 
-  getPendingQualityChecks: () => {
-    return getPileRecords().filter(r => r.status === 'pending_check')
+  refreshCurrentRecordState: () => {
+    const { selectedPile, currentRecord } = get()
+    if (!selectedPile || !currentRecord?.id) return
+    const fresh = get().getRecordByPileId(selectedPile.id)
+    if (fresh) {
+      const validation = validateRecord(fresh)
+      set({ currentRecord: fresh, currentValidation: validation })
+      console.log('[Store] 刷新当前记录状态:', fresh.pileNo, '→', fresh.status)
+    }
+  },
+
+  getPendingQualityChecks: (filter) => {
+    let list = getPileRecords().filter(r => r.status === 'pending_check')
+    if (filter?.drillNo) {
+      list = list.filter(r => r.drillNo === filter.drillNo)
+    }
+    if (filter?.operator) {
+      list = list.filter(r => r.operator === filter.operator)
+    }
+    if (filter?.exceptionType) {
+      list = list.filter(r => r.validation.exceptions.some(ex => ex.type === filter.exceptionType || ex.message.includes(filter.exceptionType!)))
+    }
+    return list
   },
 
   getTodayRecords: () => {
@@ -468,14 +534,89 @@ export const usePileStore = create<PileStore>((set, get) => ({
     return { byDrill, byOperator, byStage }
   },
 
+  adjustPileAssignment: (pileId, field, newValue, reason, adjustBy = '班组长') => {
+    const piles = getPileList()
+    const pileIndex = piles.findIndex(p => p.id === pileId)
+    if (pileIndex < 0) return false
+
+    const pile = piles[pileIndex]
+    const oldValue = (pile as any)[field] || ''
+    if (oldValue === newValue) {
+      console.log('[Store] 转桩未变化，跳过:', pile.pileNo, field, oldValue, '→', newValue)
+      return true
+    }
+
+    try {
+      const updatedPile: PileInfo = {
+        ...pile,
+        [field]: newValue
+      }
+      savePileInfo(updatedPile)
+
+      const adjustLog: AssignAdjustLog = {
+        id: generateId(),
+        pileId,
+        pileNo: pile.pileNo,
+        field,
+        oldValue: String(oldValue),
+        newValue,
+        adjustTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+        adjustBy,
+        reason
+      }
+      saveAssignAdjustLog(adjustLog)
+
+      const existingRecord = get().getRecordByPileId(pileId)
+      if (existingRecord && existingRecord.status !== 'checked' && existingRecord.status !== 'signed') {
+        const updatedRecord: PileRecord = {
+          ...existingRecord,
+          [field]: newValue,
+          updateTime: dayjs().format('YYYY-MM-DD HH:mm:ss')
+        } as PileRecord
+        const fieldLabel = field === 'drillNo' ? '钻机编号' : '施工员'
+        const newChangeLog = {
+          field: fieldLabel,
+          oldValue: String(oldValue) || '(空)',
+          newValue,
+          operator: adjustBy,
+          changeTime: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+          reason: reason || '班组调整'
+        }
+        updatedRecord.changeLogs = [...(existingRecord.changeLogs || []), newChangeLog]
+        savePileRecord(updatedRecord)
+      }
+
+      const { selectedPile: selPile, currentRecord: curRec } = get()
+      if (selPile?.id === pileId) {
+        const newSel: PileInfo = { ...selPile, [field]: newValue }
+        const freshPiles = getPileList()
+        const freshRecords = getPileRecords()
+        const freshAdjustLogs = getAssignAdjustLogs()
+        const newCur = curRec && curRec.id ? { ...curRec, [field]: newValue } : curRec
+        set({ selectedPile: newSel, currentRecord: newCur, piles: freshPiles, records: freshRecords, assignAdjustLogs: freshAdjustLogs })
+      } else {
+        const freshPiles = getPileList()
+        const freshRecords = getPileRecords()
+        const freshAdjustLogs = getAssignAdjustLogs()
+        set({ piles: freshPiles, records: freshRecords, assignAdjustLogs: freshAdjustLogs })
+      }
+
+      console.log('[Store] 转桩成功:', pile.pileNo, field, oldValue, '→', newValue)
+      return true
+    } catch (error) {
+      console.error('[Store] 转桩失败:', error)
+      return false
+    }
+  },
+
   generateDailyLog: (date?: string) => {
     const targetDate = date || dayjs().format('YYYY-MM-DD')
-    const todayRecords = getPileRecordsByDate(targetDate)
-      .filter(r => r.status === 'checked' || r.status === 'signed' || r.status === 'pending_check')
+    const allDayRecords = getPileRecordsByDate(targetDate)
+    const validRecords = allDayRecords.filter(r => r.status === 'checked' || r.status === 'signed')
+    const pendingRecords = allDayRecords.filter(r => r.status !== 'checked' && r.status !== 'signed')
     
-    if (todayRecords.length === 0) {
-      console.log('[Store] 今日无合格记录，无法生成日志')
-      return null
+    if (validRecords.length === 0) {
+      console.log('[Store] 今日无质检通过记录，正式日志内容为空')
     }
 
     const calculateTheoreticalVolume = (diameter: number, length: number) => {
@@ -500,7 +641,7 @@ export const usePileStore = create<PileStore>((set, get) => ({
       }
 
       const exceptions = record.validation.exceptions.map(ex => ({
-        field: RECORD_FIELDS.find(f => f.key === ex.field)?.label || ex.field,
+        field: FIELD_LABELS[ex.field] || RECORD_FIELDS.find(f => f.key === ex.field)?.label || ex.field,
         message: ex.message,
         reason: record.exceptionReason || undefined
       }))
@@ -524,50 +665,47 @@ export const usePileStore = create<PileStore>((set, get) => ({
     }
 
     const pendingReasons: string[] = []
-    todayRecords.forEach(record => {
+    
+    pendingRecords.forEach(record => {
+      const statusText = record.status === 'pending_check' ? '待质检复核' : 
+                        record.status === 'draft' ? '草稿未提交' : record.status
+      pendingReasons.push(`${record.pileNo}: 未通过质检（${statusText}）`)
+    })
+
+    validRecords.forEach(record => {
       const detail = convertToLogRecordDetail(record)
-      
-      if (detail.pendingStages.length > 0) {
+      if (detail.pendingStages.length > 0 && detail.pendingStages.length < 4) {
         pendingReasons.push(`${record.pileNo}: 施工阶段未完成（${detail.pendingStages.map(s => {
           const stageLabels: Record<string, string> = { drill_start: '开钻', drill_end: '终孔', cage: '下笼', concrete: '灌注' }
           return stageLabels[s] || s
         }).join('、')}）`)
       }
-      
       record.validation.exceptions.forEach(ex => {
-        const fieldLabel = RECORD_FIELDS.find(f => f.key === ex.field)?.label || ex.field
+        const fieldLabel = FIELD_LABELS[ex.field] || RECORD_FIELDS.find(f => f.key === ex.field)?.label || ex.field
         if (!record.exceptionReason) {
           pendingReasons.push(`${record.pileNo}: ${fieldLabel}异常 - ${ex.message}，待说明原因`)
         }
       })
-      
-      if (record.validation.missingFields.length > 0) {
-        record.validation.missingFields.forEach(fieldKey => {
-          const fieldLabel = RECORD_FIELDS.find(f => f.key === fieldKey)?.label || fieldKey
-          pendingReasons.push(`${record.pileNo}: ${fieldLabel}未填写`)
-        })
-      }
-
-      if (record.status === 'pending_check') {
-        pendingReasons.push(`${record.pileNo}: 待质检复核`)
-      }
     })
 
-    const recordDetails = todayRecords.map(r => convertToLogRecordDetail(r))
-    const signedRecords = todayRecords.filter(r => r.status === 'checked' || r.status === 'signed')
+    const recordDetails = validRecords.map(r => convertToLogRecordDetail(r))
+    const signedRecords = validRecords
+
+    const pendingCheckCount = pendingRecords.filter(r => r.status === 'pending_check').length
+    const draftCount = pendingRecords.filter(r => r.status === 'draft').length
 
     const log: DailyLog = {
       id: generateId(),
       date: targetDate,
-      records: todayRecords.map(r => r.id),
+      records: validRecords.map(r => r.id),
       recordDetails,
       totalPiles: signedRecords.length,
       completedPiles: signedRecords.filter(r => r.validation.overallStatus === 'normal').length,
       exceptionPiles: signedRecords.filter(r => r.validation.overallStatus === 'error').length,
       pendingReasons,
       weather: '晴',
-      constructionSituation: `今日完成${signedRecords.length}根桩质检通过，其中${signedRecords.filter(r => r.validation.overallStatus === 'normal').length}根合格，${signedRecords.filter(r => r.validation.overallStatus === 'error').length}根存在异常。${todayRecords.filter(r => r.status === 'pending_check').length}根待质检复核。`,
-      existingProblems: pendingReasons.length > 0 ? `共${pendingReasons.length}项待补，详见待补原因汇总。` : '无',
+      constructionSituation: `今日正式记录${signedRecords.length}根（质检通过），其中${signedRecords.filter(r => r.validation.overallStatus === 'normal').length}根合格，${signedRecords.filter(r => r.validation.overallStatus === 'error').length}根存在异常。待处理：草稿${draftCount}根、待复核${pendingCheckCount}根。`,
+      existingProblems: pendingReasons.length > 0 ? `共${pendingReasons.length}项待补/待处理，详见待补原因汇总（含未通过质检记录提醒）。` : '无',
       status: 'draft',
       isLocked: false,
       createTime: dayjs().format('YYYY-MM-DD HH:mm:ss')
@@ -577,7 +715,7 @@ export const usePileStore = create<PileStore>((set, get) => ({
     const logs = getDailyLogs()
     set({ dailyLogs: logs })
 
-    console.log('[Store] 生成施工日志:', targetDate, '待补原因:', pendingReasons.length)
+    console.log('[Store] 生成施工日志:', targetDate, '正式记录:', validRecords.length, '待处理记录:', pendingRecords.length, '待补原因:', pendingReasons.length)
     return log
   },
 

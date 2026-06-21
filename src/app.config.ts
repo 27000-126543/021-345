@@ -2,6 +2,7 @@ export default defineAppConfig({
   pages: [
     'pages/pileList/index',
     'pages/recordForm/index',
+    'pages/qcWorkbench/index',
     'pages/dailyLog/index',
     'pages/mine/index',
     'pages/pileDetail/index',
@@ -26,6 +27,10 @@ export default defineAppConfig({
       {
         pagePath: 'pages/recordForm/index',
         text: '成孔记录'
+      },
+      {
+        pagePath: 'pages/qcWorkbench/index',
+        text: '质检工作台'
       },
       {
         pagePath: 'pages/dailyLog/index',

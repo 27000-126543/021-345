@@ -1,10 +1,11 @@
 import Taro from '@tarojs/taro'
-import { PileRecord, DailyLog, PileInfo } from '@/types/pile'
+import { PileRecord, DailyLog, PileInfo, AssignAdjustLog } from '@/types/pile'
 
 const STORAGE_KEYS = {
   PILES: 'pile_records',
   LOGS: 'daily_logs',
-  PILE_LIST: 'pile_info_list'
+  PILE_LIST: 'pile_info_list',
+  ASSIGN_ADJUST_LOGS: 'assign_adjust_logs'
 }
 
 export const savePileRecord = (record: PileRecord): void => {
@@ -102,4 +103,43 @@ export const updatePileStatus = (pileId: string, status: PileInfo['status']): vo
 
 export const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2)
+}
+
+export const savePileInfo = (pile: PileInfo): void => {
+  try {
+    const piles = getPileList()
+    const index = piles.findIndex(p => p.id === pile.id)
+    if (index >= 0) {
+      piles[index] = pile
+    } else {
+      piles.push(pile)
+    }
+    Taro.setStorageSync(STORAGE_KEYS.PILE_LIST, piles)
+    console.log('[Storage] 更新桩位信息成功:', pile.pileNo)
+  } catch (error) {
+    console.error('[Storage] 更新桩位信息失败:', error)
+    throw error
+  }
+}
+
+export const getAssignAdjustLogs = (): AssignAdjustLog[] => {
+  try {
+    const data = Taro.getStorageSync(STORAGE_KEYS.ASSIGN_ADJUST_LOGS)
+    return data || []
+  } catch (error) {
+    console.error('[Storage] 获取调整记录失败:', error)
+    return []
+  }
+}
+
+export const saveAssignAdjustLog = (log: AssignAdjustLog): void => {
+  try {
+    const logs = getAssignAdjustLogs()
+    logs.unshift(log)
+    Taro.setStorageSync(STORAGE_KEYS.ASSIGN_ADJUST_LOGS, logs)
+    console.log('[Storage] 保存调整记录成功:', log.pileNo, log.field, log.oldValue, '→', log.newValue)
+  } catch (error) {
+    console.error('[Storage] 保存调整记录失败:', error)
+    throw error
+  }
 }

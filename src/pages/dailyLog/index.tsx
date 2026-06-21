@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, Button, Picker, Input, ScrollView } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import classnames from 'classnames'
 import dayjs from 'dayjs'
 import { usePileStore } from '@/store/usePileStore'
@@ -25,11 +25,19 @@ const DailyLogPage: React.FC = () => {
   const signDailyLog = usePileStore(state => state.signDailyLog)
   const loadRecords = usePileStore(state => state.loadRecords)
   const exportDailyReport = usePileStore(state => state.exportDailyReport)
+  const loadPiles = usePileStore(state => state.loadPiles)
 
   useEffect(() => {
     loadRecords()
     loadDailyLogs()
   }, [])
+
+  useDidShow(() => {
+    loadPiles()
+    loadRecords()
+    loadDailyLogs()
+    console.log('[DailyLog] useDidShow刷新状态')
+  })
 
   const filteredRecords = todayRecords.filter(r => r.createTime.startsWith(selectedDate))
   
